@@ -1,15 +1,17 @@
+import { Picker } from '@react-native-picker/picker';
+import * as Location from 'expo-location';
 import React, { useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker'; 
 
 // 공통 컴포넌트 (별도 파일로 분리하여 사용)
 const PrimaryButton = ({ title, onPress }) => (
@@ -23,6 +25,7 @@ const DonationEntryScreen = ({ navigation }) => {
   const [selectedStore, setSelectedStore] = useState();
   const [donationAmount, setDonationAmount] = useState('');
   const [donationCode, setDonationCode] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const dongs = ['왕십리2동', '마장동', '사근동'];
   const stores = ['송하정', '돌삼겹나들목', '파리바게뜨 왕십리무학점'];
@@ -32,14 +35,48 @@ const DonationEntryScreen = ({ navigation }) => {
       Alert.alert('입력 오류', '모든 필수 항목을 입력해주세요.');
       return;
     }
-    // TODO: 기부 처리 로직 (API 호출 등)
-    console.log({
-      dong: selectedDong,
-      store: selectedStore,
-      amount: donationAmount,
-      code: donationCode,
-    });
-    Alert.alert('기부 완료', '참여해주셔서 감사합니다!');
+    // TODO: 기부 처리 API 호출
+    console.log("기부 성공");
+
+    // 기부 성공 후, 입력 필드 초기화 및 성공 화면으로 이동
+    const amountToPass = parseInt(donationAmount, 10);
+    setDonationAmount('');
+    setSelectedDong(null);
+    setSelectedStore(null);
+    setDonationCode('');
+    
+    navigation.replace('DonationSuccess', { amount: amountToPass });
+  };
+
+  const handleAutoFindLocation = async () => {
+    setLocationLoading(true);
+    // 1. 위치 정보 사용 권한 요청
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('권한 거부', '위치 정보 사용 권한이 거부되었습니다.');
+      setLocationLoading(false);
+      return;
+    }
+
+    // 2. 현재 위치 정보 가져오기
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      console.log(location.coords.latitude, location.coords.longitude);
+      
+      // 3. (중요) 좌표 -> 주소 변환 및 주변 가게 찾기
+      // 이 기능은 보통 네이버/카카오 지도 API 같은 외부 서비스나
+      // 자체 백엔드 서버가 필요합니다. 여기서는 시뮬레이션합니다.
+      setTimeout(() => {
+        Alert.alert("위치 확인", "현재 위치를 기반으로 '왕십리2동'과 '송하정'을 찾았습니다.");
+        setSelectedDong('왕십리2동');
+        setSelectedStore('송하정');
+        setLocationLoading(false);
+      }, 1500); // 1.5초 후 결과 표시
+
+    } catch (error) {
+      Alert.alert('오류', '현재 위치를 가져오는 데 실패했습니다.');
+      setLocationLoading(false);
+    }
   };
 
   return (
@@ -52,6 +89,15 @@ const DonationEntryScreen = ({ navigation }) => {
                 <Text style={styles.adminLoginText}>관리자 로그인</Text>
             </TouchableOpacity>
         </View>
+
+        {/* 자동 찾기 버튼 추가 */}
+        <TouchableOpacity style={styles.locationButton} onPress={handleAutoFindLocation} disabled={locationLoading}>
+          {locationLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.locationButtonText}>📍 현위치로 자동 찾기</Text>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.formContainer}>
           {/* 동 선택 */}
@@ -93,7 +139,7 @@ const DonationEntryScreen = ({ navigation }) => {
           />
 
           {/* 기부 코드 */}
-          <Text style={styles.label}>기부 코드를 입력해주세요 (선택)</Text>
+          <Text style={styles.label}>기부 코드를 입력해주세요</Text>
            <View style={styles.codeInputContainer}>
             <TextInput
                 style={[styles.input, styles.codeInput]}
@@ -192,6 +238,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   codeConfirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  locationButton: {
+    backgroundColor: '#28a745',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  locationButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',

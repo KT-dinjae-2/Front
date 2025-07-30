@@ -1,18 +1,24 @@
+import { Picker } from '@react-native-picker/picker';
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, SafeAreaView, Alert, TouchableOpacity } from 'react-native';
+import { Alert, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const AdminLoginScreen = ({ navigation }) => {
-  const [region, setRegion] = useState('왕십리2동'); // 예시 값
+  const [region, setRegion] = useState('왕십리2동'); // 기본 선택
   const [regionCode, setRegionCode] = useState('');
+  const dongs = ['왕십리2동', '마장동', '왕십리도선동']; // 선택 가능한 동 목록
 
   const handleLogin = () => {
-    // 실제 앱에서는 서버에 지역과 코드를 보내 유효성을 검사해야 합니다.
-    // 여기서는 코드가 '1234'라고 가정합니다.
-    if (region === '왕십리2동' && regionCode === '1234') {
-      // 로그인 성공 시, 이전 화면으로 돌아갈 수 없도록 replace 사용
+    // 전체 관리자 로그인
+    if (regionCode.toUpperCase() === 'SUPER') {
+      navigation.replace('SuperAdminDashboard');
+      return;
+    }
+    
+    // 동 관리자 로그인 (이제 코드는 '1234'로 통일)
+    if (dongs.includes(region) && regionCode === '1234') {
       navigation.replace('DongDashboard', { dongName: region });
     } else {
-      Alert.alert('로그인 실패', '지역 코드 정보가 일치하지 않습니다.');
+      Alert.alert('로그인 실패', '지역 또는 코드 정보가 일치하지 않습니다.');
     }
   };
 
@@ -26,8 +32,16 @@ const AdminLoginScreen = ({ navigation }) => {
 
         <View style={styles.card}>
           <Text style={styles.label}>로그인 지역</Text>
-          <View style={styles.regionContainer}>
-            <Text style={styles.regionText}>{region}</Text>
+          {/* 동 선택을 Picker로 변경 */}
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={region}
+              onValueChange={(itemValue) => setRegion(itemValue)}
+            >
+              {dongs.map((dong, index) => (
+                <Picker.Item key={index} label={dong} value={dong} />
+              ))}
+            </Picker>
           </View>
 
           <Text style={styles.label}>지역 코드 입력</Text>
@@ -58,6 +72,14 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, color: '#555', marginBottom: 8 },
   regionContainer: { borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 16, backgroundColor: '#FFF', marginBottom: 20 },
   regionText: { fontSize: 16 },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    marginBottom: 20,
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+  },
   input: { borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 16, fontSize: 16, backgroundColor: '#FFF' },
   button: { backgroundColor: '#007AFF', padding: 16, borderRadius: 12, alignItems: 'center' },
   buttonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
