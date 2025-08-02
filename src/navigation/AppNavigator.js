@@ -5,6 +5,7 @@ import React from 'react';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import DongDashboardScreen from '../screens/dongAdmin/DongDashboardScreen';
 import StoreLedgerScreen from '../screens/dongAdmin/StoreLedgerScreen';
+import UsageDetailScreen from '../screens/dongAdmin/UsageDetailScreen';
 import UsageEditScreen from '../screens/dongAdmin/UsageEditScreen';
 import UsageEntryScreen from '../screens/dongAdmin/UsageEntryScreen';
 import SuperAdminDashboardScreen from '../screens/superAdmin/SuperAdminDashboardScreen';
@@ -26,6 +27,7 @@ const AppNavigator = () => {
       <Stack.Screen name="DongDashboard" component={DongDashboardScreen} />
       <Stack.Screen name="StoreLedger" component={StoreLedgerScreen} />
       <Stack.Screen name="UsageEntry" component={UsageEntryScreen} />
+      <Stack.Screen name="UsageDetail" component={UsageDetailScreen} />
       <Stack.Screen name="UsageEdit" component={UsageEditScreen} />
       <Stack.Screen name="SuperAdminDashboard" component={SuperAdminDashboardScreen} />
       <Stack.Screen name="DonationSuccess" component={DonationSuccessScreen} />

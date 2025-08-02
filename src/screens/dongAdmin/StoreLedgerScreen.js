@@ -1,296 +1,200 @@
 import React from 'react';
-import { Dimensions, FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const { width } = Dimensions.get('window');
-
-// 가상 데이터 (실제로는 storeId를 이용해 API로 호출)
-const mockLedgerData = {
-  '1': [ // 송하정
-    { id: '1-1', type: '기부', amount: 15000, date: '2025/07/31' },
-    { id: '1-2', type: '나눔', amount: 5000, date: '2025/07/30' },
-    { id: '1-3', type: '기부', amount: 5000, date: '2025/07/29' },
-    { id: '1-4', type: '기부', amount: 10000, date: '2025/07/28' },
-  ],
-  '2': [ // 돌삼겹나들목
-    { id: '2-1', type: '기부', amount: 20000, date: '2025/07/25' },
-    { id: '2-2', type: '기부', amount: 20000, date: '2025/07/20' },
-  ],
-  '3': [ // 파리바게뜨
-    { id: '3-1', type: '나눔', amount: 10000, date: '2025/07/30' },
-    { id: '3-2', type: '나눔', amount: 10000, date: '2025/07/29' },
-  ],
-  '4': [], // 마장동 먹자골목 (데이터 없음)
-  '5': [ // 도선동 분식
-      { id: '5-1', type: '기부', amount: 15000, date: '2025/07/15' },
-      { id: '5-2', type: '나눔', amount: 5000, date: '2025/07/14' },
-  ],
-};
+// API 연동 전 임시 데이터
+const mockTransactions = [
+  { id: '1', type: '기부', amount: 10000, date: '2025/07/28' },
+  { id: '2', type: '기부', amount: 5000, date: '2025/07/29' },
+  { id: '3', type: '나눔', amount: 5000, date: '2025/07/30' },
+  { id: '4', type: '기부', amount: 15000, date: '2025/07/31' },
+  { id: '5', type: '나눔', amount: 20000, date: '2025/08/01' },
+  { id: '6', type: '기부', amount: 7000, date: '2025/08/02' },
+];
 
 const formatNumber = (num) => num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
 
-const LedgerItem = ({ item, navigation }) => {
+// 거래 내역 아이템 컴포넌트
+const TransactionItem = ({ item, onPress, isClickable }) => {
   const isDonation = item.type === '기부';
-  const amountColor = isDonation ? '#10B981' : '#EF4444';
-  const bgColor = isDonation ? '#ECFDF5' : '#FEF2F2';
-  const prefix = isDonation ? '+' : '-';
-  const icon = isDonation ? '💝' : '🎁';
-
-  const handlePress = () => {
-    if (!isDonation) {
-      navigation.navigate('UsageEdit', { item });
-    }
-  };
-
   return (
-    <TouchableOpacity 
-      onPress={handlePress} 
-      disabled={isDonation}
-      style={[styles.itemContainer, { backgroundColor: bgColor }]}
-      activeOpacity={isDonation ? 1 : 0.7}
-    >
-      <View style={styles.itemLeft}>
-        <Text style={styles.itemIcon}>{icon}</Text>
-        <View style={styles.itemInfo}>
-          <Text style={[styles.itemType, { color: amountColor }]}>{item.type}</Text>
-          <Text style={styles.itemDate}>{item.date}</Text>
+    <TouchableOpacity onPress={onPress} disabled={!isClickable} activeOpacity={0.7}>
+      <View style={[styles.transactionItem, !isClickable && styles.disabledItem]}>
+        <View style={[styles.typeTag, isDonation ? styles.donationTag : styles.shareTag]}>
+          <Text style={styles.typeText}>{item.type}</Text>
         </View>
-      </View>
-      <View style={styles.itemRight}>
-        <Text style={[styles.itemAmount, { color: amountColor }]}>
-          {prefix} {item.amount.toLocaleString()}원
+        <Text style={[styles.amountText, { color: isDonation ? '#D9534F' : '#428BCA' }]}>
+          {isDonation ? '+' : '-'} {formatNumber(item.amount)}원
         </Text>
-        {!isDonation && <Text style={styles.editHint}>탭하여 수정</Text>}
+        <Text style={styles.dateText}>{item.date}</Text>
       </View>
     </TouchableOpacity>
   );
 };
 
 const StoreLedgerScreen = ({ route, navigation }) => {
-  const { storeName, storeId } = route.params;
-  const ledgerData = mockLedgerData[storeId] || [];
-  
-  // 통계 계산
-  const totalDonation = ledgerData.filter(item => item.type === '기부').reduce((sum, item) => sum + item.amount, 0);
-  const totalShare = ledgerData.filter(item => item.type === '나눔').reduce((sum, item) => sum + item.amount, 0);
+  // DongDashboardScreen에서 전달받은 모든 정보를 사용합니다.
+  const { storeName, storeId, dongName } = route.params;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>{storeName}</Text>
-          <Text style={styles.subtitle}>전체 내역</Text>
+      <View style={styles.container}>
+        {/* 헤더 */}
+        <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Text style={styles.backButtonText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{storeName || '가게 이름'}</Text>
+            <View style={{width: 40}} /> {/* 중앙 정렬을 위한 빈 공간 */}
+        </View>
+
+        {/* 거래 내역 리스트 컨테이너 */}
+        <View style={styles.ledgerContainer}>
+          <FlatList
+            ListHeaderComponent={<Text style={styles.ledgerTitle}>전체</Text>}
+            data={mockTransactions}
+            renderItem={({ item }) => {
+              const isClickable = item.type === '나눔';
+              return (
+                <TransactionItem 
+                  item={item} 
+                  isClickable={isClickable}
+                  onPress={
+                    isClickable 
+                      // 'UsageDetail' 화면으로 이동 시, dongName도 함께 전달합니다.
+                      ? () => navigation.navigate('UsageDetail', { storeName, item, dongName })
+                      : null
+                  }
+                />
+              )
+            }}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+          />
         </View>
       </View>
 
-      {/* 통계 카드 */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>+{totalDonation.toLocaleString()}원</Text>
-          <Text style={styles.statLabel}>총 기부금액</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#EF4444' }]}>-{totalShare.toLocaleString()}원</Text>
-          <Text style={styles.statLabel}>총 나눔금액</Text>
-        </View>
-      </View>
-      
-      <FlatList
-        data={ledgerData}
-        renderItem={({ item }) => <LedgerItem item={item} navigation={navigation} />}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📝</Text>
-            <Text style={styles.emptyText}>기부/나눔 내역이 없습니다</Text>
-            <Text style={styles.emptySubtext}>아래 버튼을 눌러 나눔 내역을 추가해보세요</Text>
-          </View>
-        }
-      />
-
-      {/* Floating Action Button */}
+      {/* 추가 버튼 */}
       <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => navigation.navigate('UsageEntry', { storeId, storeName })}
-        activeOpacity={0.8}
+        style={styles.fab}
+        onPress={() => navigation.navigate('UsageEntry', { 
+            storeName: storeName, 
+            storeId: storeId 
+        })}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: '#F8FAFC' 
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F4F5F7',
   },
-  header: { 
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 24, 
-    paddingVertical: 20, 
-    paddingTop: 60,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  container: {
+    flex: 1,
   },
-  backButton: { 
-    position: 'absolute', 
-    left: 24, 
-    top: 50,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? 20 : 10,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  backButton: {
+    padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    width: 40,
   },
-  backButtonText: { 
-    fontSize: 20, 
-    color: '#FFFFFF',
+  backButtonText: {
+    fontSize: 28,
+    color: '#098710',
     fontWeight: 'bold',
   },
-  headerContent: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  subtitle: { 
-    fontSize: 16, 
-    color: 'rgba(255,255,255,0.8)',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    gap: 16,
-  },
-  statCard: {
+  ledgerContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: '#E8F5E9',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  ledgerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginVertical: 16,
+    paddingHorizontal: 16,
+  },
+  transactionItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#10B981',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  listContainer: { 
-    padding: 24, 
-    paddingTop: 16,
-  },
-  itemContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 20,
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  disabledItem: {
+    // opacity: 0.6,
   },
-  itemIcon: {
-    fontSize: 24,
+  typeTag: {
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     marginRight: 12,
   },
-  itemInfo: {
-    flex: 1,
+  donationTag: {
+    backgroundColor: '#D9534F',
   },
-  itemType: { 
-    fontSize: 16, 
-    fontWeight: '600',
-    marginBottom: 4,
+  shareTag: {
+    backgroundColor: '#428BCA',
   },
-  itemDate: { 
-    fontSize: 14, 
-    color: '#6B7280',
-  },
-  itemRight: {
-    alignItems: 'flex-end',
-  },
-  itemAmount: { 
-    fontSize: 18, 
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  editHint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontStyle: 'italic',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  fab: { 
-    position: 'absolute', 
-    right: 24, 
-    bottom: 40, 
-    width: 64, 
-    height: 64, 
-    borderRadius: 32,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabText: { 
-    fontSize: 28, 
+  typeText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+    fontSize: 12,
+  },
+  amountText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#098710',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  fabIcon: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    lineHeight: 32,
   },
 });
 

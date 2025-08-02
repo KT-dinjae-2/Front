@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   storeTitle: { 
     fontSize: 32, 
     fontWeight: 'bold', 
-    color: '#1F2937' 
+    color: '#1F2937'
   },
   cloverIcon: { 
     fontSize: 30, 
