@@ -44,6 +44,7 @@ const ConfirmationModal = ({ visible, onCancel, onConfirm, item }) => {
     );
 };
 
+// 맞춤형 등록 완료 팝업 컴포넌트
 const SuccessModal = ({ visible, onConfirm, entryCount }) => {
     return (
         <Modal transparent={true} visible={visible} onRequestClose={onConfirm} animationType="fade">
@@ -118,7 +119,6 @@ const UsageEntryScreen = ({ route, navigation }) => {
     setCalendarVisible(true);
   };
   
-  // 등록 완료 시, Alert 대신 맞춤 팝업을 띄우도록 수정
   const handleRegisterAll = () => {
     for (const entry of entries) {
       const numericAmount = parseInt(String(entry.amount).replace(/,/g, ''), 10);
@@ -168,7 +168,11 @@ const UsageEntryScreen = ({ route, navigation }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
+          {/* ✅ 헤더 */}
           <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Text style={styles.backButtonText}>‹</Text>
+            </TouchableOpacity>
             <Text style={styles.storeTitle}>{storeName}</Text>
             <Text style={styles.cloverIcon}>✤</Text>
           </View>
@@ -193,26 +197,18 @@ const UsageEntryScreen = ({ route, navigation }) => {
         </View>
       </KeyboardAvoidingView>
 
-      {/* 달력 모달 */}
-      <Modal
-        transparent={true}
-        visible={isCalendarVisible}
-        onRequestClose={() => setCalendarVisible(false)}
-      >
+      <Modal transparent={true} visible={isCalendarVisible} onRequestClose={() => setCalendarVisible(false)}>
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setCalendarVisible(false)}>
           <View style={styles.calendarModalContent}>
             <Calendar
               onDayPress={onDayPress}
-              markedDates={{
-                [entries.find(e => e.id === currentEntryId)?.date.replace(/\//g, '-')]: {selected: true, selectedColor: '#098710'}
-              }}
+              markedDates={{ [entries.find(e => e.id === currentEntryId)?.date.replace(/\//g, '-')]: {selected: true, selectedColor: '#098710'} }}
               theme={{ arrowColor: '#098710', todayTextColor: '#098710' }}
             />
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* 삭제 확인 팝업 */}
       <ConfirmationModal 
         visible={isDeleteModalVisible}
         onCancel={() => setDeleteModalVisible(false)}
@@ -220,7 +216,6 @@ const UsageEntryScreen = ({ route, navigation }) => {
         item={itemToDelete}
       />
 
-      {/* 등록 완료 팝업 */}
       <SuccessModal 
         visible={isSuccessModalVisible}
         onConfirm={handleSuccessConfirm}
@@ -233,7 +228,26 @@ const UsageEntryScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   container: { flex: 1, backgroundColor: '#E8F5E9' },
-  header: { alignItems: 'center', paddingTop: 40, paddingBottom: 20, backgroundColor: '#FFFFFF' },
+  // ✅ 헤더 스타일 수정
+  header: { 
+    alignItems: 'center', 
+    paddingTop: 60, 
+    paddingBottom: 20, 
+    backgroundColor: '#FFFFFF' 
+  },
+  // ✅ 뒤로가기 버튼 스타일 추가
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 20 : 50,
+    left: 16,
+    zIndex: 10,
+    padding: 8,
+  },
+  backButtonText: {
+    fontSize: 28,
+    color: '#098710',
+    fontWeight: 'bold',
+  },
   storeTitle: { fontSize: 32, fontWeight: 'bold', color: '#1F2937' },
   cloverIcon: { fontSize: 30, color: '#098710', marginTop: 12 },
   listContainer: { padding: 20 },
@@ -255,7 +269,7 @@ const styles = StyleSheet.create({
   calendarModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '100%' },
   confirmationModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 24, width: '100%', alignItems: 'center' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 12 },
-  modalMessage: { fontSize: 16, color: '#374151', textAlign: 'center', lineHeight: 26, fontWeight: '500' }, // ✅ 줄 간격 추가
+  modalMessage: { fontSize: 16, color: '#374151', textAlign: 'center', lineHeight: 26, fontWeight: '500' },
   modalSubMessage: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 16, marginBottom: 24 },
   modalButtonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
   modalButton: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginHorizontal: 6 },

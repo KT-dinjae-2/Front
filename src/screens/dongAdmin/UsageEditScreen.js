@@ -1,157 +1,230 @@
-import React from 'react';
-import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+// KeyboardAvoidingView가 import 목록에 있는지 확인해주세요.
+import { Alert, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 
-const formatNumber = (num) => num ? num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') : '0';
+const formatNumber = (num) => {
+    if (!num) return '';
+    const numericValue = num.toString().replace(/[^0-9]/g, '');
+    return numericValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
+};
 
-const UsageDetailScreen = ({ route, navigation }) => {
-  const { storeName, item, dongName } = route.params;
+const formatDate = (dateString) => {
+    if (typeof dateString === 'string') {
+        return dateString;
+    }
+    const d = new Date(dateString);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+};
+
+const UsageEditScreen = ({ route, navigation }) => {
+  const { item } = route.params;
   
-  const editor = dongName || '담당자 정보 없음';
-  const modificationDate = item.modifiedAt || item.date;
+  const [amount, setAmount] = useState(item.amount.toString());
+  const [date, setDate] = useState(item.date);
+  
+  const [isCalendarVisible, setCalendarVisible] = useState(false);
+
+  const handleEdit = () => {
+    if (!amount || !date) {
+      Alert.alert('입력 오류', '금액과 날짜를 모두 입력해주세요.');
+      return;
+    }
+    const numericAmount = parseInt(amount.replace(/,/g, ''), 10);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('입력 오류', '올바른 금액을 입력해주세요.');
+      return;
+    }
+    
+    console.log(`[수정] ID: ${item.id}, 금액: ${amount}, 날짜: ${date}`);
+    Alert.alert('수정 완료', '나눔 내역이 성공적으로 수정되었습니다.', [
+      { text: '확인', onPress: () => navigation.goBack() }
+    ]);
+  };
+
+  const onDayPress = (day) => {
+    setDate(day.dateString.replace(/-/g, '/'));
+    setCalendarVisible(false);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-        <Text style={styles.backButtonText}>‹</Text>
-      </TouchableOpacity>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* ✅ 헤더 UI 수정 */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <View style={styles.header}>
-          <Text style={styles.storeTitle}>{storeName || '가게 이름'}</Text>
-          <Text style={styles.cloverIcon}>✤</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Text style={styles.backButtonText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.storeTitle}>나눔 내역 수정</Text>
+            <View style={{width: 40}} />
         </View>
 
-        {/* ✅ 메인 컨텐츠 컨테이너 스타일 수정 */}
-        <View style={styles.detailContainer}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>나눔 내역</Text>
-            <Text style={styles.amountText}>{formatNumber(item.amount)}원</Text>
-            <Text style={styles.dateText}>{item.date}</Text>
-          </View>
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
+            <View style={styles.contentCard}>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>현재 나눔 내역</Text>
+                    <Text style={styles.currentAmountText}>{formatNumber(item.amount)}원</Text>
+                    <Text style={styles.currentDateText}>{item.date}</Text>
+                </View>
 
-          <View style={styles.divider} />
+                <View style={styles.divider} />
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>나눔 등록 내역</Text>
-            <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>담당자</Text>
-                <Text style={styles.infoValue}>{editor}</Text>
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>수정할 정보</Text>
+                    <Text style={styles.label}>나눔 금액</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="수정할 금액 입력"
+                        placeholderTextColor="#B0B0B0"
+                        keyboardType="number-pad"
+                        value={formatNumber(amount)}
+                        onChangeText={(text) => setAmount(text)}
+                    />
+
+                    <Text style={[styles.label, { marginTop: 20 }]}>나눔 날짜</Text>
+                    <TouchableOpacity style={styles.dateInput} onPress={() => setCalendarVisible(true)}>
+                        <Text style={styles.dateText}>{date}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
-            <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>최종 수정 일시</Text>
-                <Text style={styles.infoValue}>{modificationDate}</Text>
-            </View>
-          </View>
-        </View>
+        </ScrollView>
         
-        <TouchableOpacity 
-          style={styles.editButton} 
-          onPress={() => navigation.navigate('UsageEdit', { item, dongName })}
-        >
-          <Text style={styles.editButtonText}>나눔 내역 수정</Text>
+        <View style={styles.footer}>
+            <TouchableOpacity style={styles.submitButton} onPress={handleEdit}>
+                <Text style={styles.submitButtonText}>수정 완료</Text>
+            </TouchableOpacity>
+        </View>
+
+      </KeyboardAvoidingView>
+
+      <Modal
+        transparent={true}
+        visible={isCalendarVisible}
+        onRequestClose={() => setCalendarVisible(false)}
+      >
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setCalendarVisible(false)}>
+          <View style={styles.modalContent}>
+            <Calendar
+              current={date.replace(/\//g, '-')}
+              onDayPress={onDayPress}
+              markedDates={{
+                [date.replace(/\//g, '-')]: {selected: true, selectedColor: '#098710'}
+              }}
+              theme={{ arrowColor: '#098710', todayTextColor: '#098710' }}
+            />
+          </View>
         </TouchableOpacity>
-      </ScrollView>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: '#F4F5F7' 
-  },
-  container: { 
-    flexGrow: 1, 
-    paddingBottom: 20,
-  },
-  backButton: { 
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 20 : 50,
-    left: 16,
-    zIndex: 10,
-    padding: 8,
-  },
-  backButtonText: { 
-    fontSize: 28, 
-    color: '#098710', 
-    fontWeight: 'bold' 
-  },
-  // ✅ 헤더 스타일 수정
-  header: { 
-    alignItems: 'center', 
-    paddingTop: 60, 
-    paddingBottom: 20, 
-    backgroundColor: '#FFFFFF',
-  },
-  storeTitle: { 
-    fontSize: 32, 
-    fontWeight: 'bold', 
-    color: '#1F2937' 
-  },
-  cloverIcon: { 
-    fontSize: 30, 
-    color: '#098710', 
-    marginTop: 12 
-  },
-  // ✅ 디테일 컨테이너 스타일 수정
-  detailContainer: { 
-    backgroundColor: '#E8F5E9', 
-    margin: 20, 
-    borderRadius: 24, 
-    padding: 30 
-  },
-  section: { 
-    marginBottom: 16 
-  },
-  sectionTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#374151', 
-    marginBottom: 20 
-  },
-  amountText: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
-    color: '#1F2937', 
-    marginBottom: 8 
-  },
-  dateText: { 
-    fontSize: 18, 
-    color: '#6B7280' 
-  },
-  divider: { 
-    height: 1, 
-    backgroundColor: '#FFFFFF',
-    marginVertical: 24 
-  },
-  editButton: { 
-    backgroundColor: '#098710', 
-    borderRadius: 16, 
-    paddingVertical: 18, 
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-  },
-  editButtonText: { 
-    color: '#FFFFFF', 
-    fontSize: 18, 
-    fontWeight: 'bold' 
-  },
-  infoRow: {
+  safeArea: { flex: 1, backgroundColor: '#E8F5E9' },
+  container: { flex: 1 },
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? 20 : 10,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
   },
-  infoLabel: {
-    fontSize: 16,
+  storeTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  backButton: { padding: 8 },
+  backButtonText: { fontSize: 28, color: '#098710', fontWeight: 'bold' },
+  contentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    margin: 20,
+    padding: 24,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 16,
+  },
+  currentAmountText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  currentDateText: {
+    fontSize: 18,
     color: '#6B7280',
   },
-  infoValue: {
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 24,
+  },
+  label: {
     fontSize: 16,
+    fontWeight: '600',
     color: '#374151',
-    fontWeight: '500',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  dateInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    justifyContent: 'center',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: '#E8F5E9',
+  },
+  submitButton: {
+    backgroundColor: '#098710',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
   },
 });
 
-export default UsageDetailScreen;
+export default UsageEditScreen;

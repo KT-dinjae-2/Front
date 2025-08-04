@@ -37,14 +37,16 @@ const StoreLedgerScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* ✅ 뒤로가기 버튼을 헤더와 분리하여 절대 위치로 배치 */}
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>‹</Text>
+      </TouchableOpacity>
+      
       <View style={styles.container}>
-        {/* 헤더 */}
+        {/* ✅ 원래의 헤더 디자인으로 복원 */}
         <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                <Text style={styles.backButtonText}>‹</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{storeName || '가게 이름'}</Text>
-            <View style={{width: 40}} /> {/* 중앙 정렬을 위한 빈 공간 */}
+          <Text style={styles.storeTitle}>{storeName || '가게 이름'}</Text>
+          <Text style={styles.cloverIcon}>✤</Text>
         </View>
 
         {/* 거래 내역 리스트 컨테이너 */}
@@ -60,7 +62,6 @@ const StoreLedgerScreen = ({ route, navigation }) => {
                   isClickable={isClickable}
                   onPress={
                     isClickable 
-                      // 'UsageDetail' 화면으로 이동 시, dongName도 함께 전달합니다.
                       ? () => navigation.navigate('UsageDetail', { storeName, item, dongName })
                       : null
                   }
@@ -95,42 +96,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? 20 : 10,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
+  // ✅ 뒤로가기 버튼 스타일 수정
   backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 20 : 50,
+    left: 16,
+    zIndex: 10,
     padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
   },
   backButtonText: {
     fontSize: 28,
     color: '#098710',
     fontWeight: 'bold',
   },
+  // ✅ 헤더 스타일 복원
+  header: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  storeTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  cloverIcon: {
+    fontSize: 30,
+    color: '#098710',
+    marginTop: 12,
+  },
   ledgerContainer: {
     flex: 1,
     backgroundColor: '#E8F5E9',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   ledgerTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginVertical: 16,
+    marginTop: 20,
+    marginBottom: 16,
     paddingHorizontal: 16,
   },
   transactionItem: {
