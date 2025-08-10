@@ -3,5 +3,6 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "idf.pythonInstallPath": "/Users/hwa/miniconda3/bin/python"
 }

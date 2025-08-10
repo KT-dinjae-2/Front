@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, LayoutAnimation, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
-
-// --- Mock Data ---
-const mockMonthlyData = {
-  '왕십리2동': [
-    { id: '1', name: '송하정', transactions: [ { year: 2025, month: 1, type: 'donation', count: 2, amount: 20000 }, { year: 2025, month: 1, type: 'share', count: 1, amount: 10000 }, { year: 2025, month: 2, type: 'donation', count: 1, amount: 10000 }, { year: 2025, month: 2, type: 'share', count: 1, amount: 10000 }, { year: 2024, month: 12, type: 'donation', count: 3, amount: 35000 }, ] },
-    { id: '2', name: '돌삼겹나들목', transactions: [ { year: 2025, month: 1, type: 'donation', count: 1, amount: 25000 }, { year: 2025, month: 3, type: 'donation', count: 1, amount: 15000 }, ] },
-    { id: '3', name: '파리바게뜨 왕십리무학점', transactions: [ { year: 2025, month: 1, type: 'donation', count: 2, amount: 20000 }, { year: 2025, month: 1, type: 'share', count: 3, amount: 30000 }, { year: 2025, month: 2, type: 'donation', count: 2, amount: 30000 }, { year: 2025, month: 2, type: 'share', count: 2, amount: 20000 }, ] },
-  ],
-  '마장동': [
-    { id: '4', name: '마장동 먹자골목', transactions: [ { year: 2025, month: 4, type: 'donation', count: 5, amount: 120000 }, { year: 2025, month: 4, type: 'share', count: 3, amount: 80000 }] },
-  ]
-};
+import { ActivityIndicator, FlatList, LayoutAnimation, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 
 // --- Helper & Components ---
 const formatNumber = (num) => num ? num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') : '0';
@@ -37,35 +25,58 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 const DongDashboardScreen = ({ route, navigation }) => {
-  const { dongName } = route.params;
+  // 이전 화면에서 dongName과 함께 dongId를 받아와야 합니다.
+  const { dongName, dongId } = route.params; 
   const [selectedYear, setSelectedYear] = useState('전체');
   const [selectedMonth, setSelectedMonth] = useState('전체');
   const [isYearPickerVisible, setIsYearPickerVisible] = useState(false);
   const [isMonthPickerVisible, setIsMonthPickerVisible] = useState(false);
+  
   const [displayData, setDisplayData] = useState({ stores: [], totalDonationCount: 0, totalDonationAmount: 0, totalShareCount: 0, totalShareAmount: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // ❌ 복잡한 높이 계산 로직 제거
-  // const [headerHeight, setHeaderHeight] = useState(0); 
+  // const API_BASE_URL = 'http://192.168.99.178:8000'; 
+  const API_BASE_URL = 'https://be168d0c5206.ngrok-free.app';
 
   const availableYears = ['전체', 2025, 2024];
   const months = ['전체', ...Array.from({ length: 12 }, (_, i) => `${i + 1}월`)];
 
   useEffect(() => {
-    const originalStores = mockMonthlyData[dongName] || [];
-    const filteredStores = originalStores.map(store => {
-      const transactions = store.transactions.filter(t => (selectedYear === '전체' || t.year === selectedYear) && (selectedMonth === '전체' || t.month === parseInt(selectedMonth)));
-      const donationCount = transactions.filter(t => t.type === 'donation').reduce((sum, t) => sum + t.count, 0);
-      const donationAmount = transactions.filter(t => t.type === 'donation').reduce((sum, t) => sum + t.amount, 0);
-      const shareCount = transactions.filter(t => t.type === 'share').reduce((sum, t) => sum + t.count, 0);
-      const shareAmount = transactions.filter(t => t.type === 'share').reduce((sum, t) => sum + t.amount, 0);
-      return { ...store, donationCount, donationAmount, shareCount, shareAmount };
-    }).filter(store => store.donationCount > 0 || store.shareCount > 0);
-    const totalDonationCount = filteredStores.reduce((sum, store) => sum + store.donationCount, 0);
-    const totalDonationAmount = filteredStores.reduce((sum, store) => sum + store.donationAmount, 0);
-    const totalShareCount = filteredStores.reduce((sum, store) => sum + store.shareCount, 0);
-    const totalShareAmount = filteredStores.reduce((sum, store) => sum + store.shareAmount, 0);
-    setDisplayData({ stores: filteredStores, totalDonationCount, totalDonationAmount, totalShareCount, totalShareAmount });
-  }, [dongName, selectedYear, selectedMonth]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      // urls.py에 정의된 주소 형식에 맞게 URL을 수정합니다.
+      const url = `${API_BASE_URL}/api/dong/${dongId}/totals/?year=${selectedYear}&month=${selectedMonth}`;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('데이터를 불러오는데 실패했습니다.');
+        }
+        const data = await response.json();
+
+        setDisplayData({
+            stores: data.stores || [],
+            totalDonationCount: data.totals.totalDonationCount || 0,
+            totalDonationAmount: data.totals.totalDonationAmount || 0,
+            totalShareCount: data.totals.totalShareCount || 0,
+            totalShareAmount: data.totals.totalShareAmount || 0,
+        });
+
+      } catch (e) {
+        setError(e.message);
+        setDisplayData({ stores: [], totalDonationCount: 0, totalDonationAmount: 0, totalShareCount: 0, totalShareAmount: 0 });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (dongId) {
+        fetchData();
+    }
+  }, [dongId, selectedYear, selectedMonth]);
 
   const togglePicker = (picker) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -80,7 +91,6 @@ const DongDashboardScreen = ({ route, navigation }) => {
   const handleSelectYear = (year) => { setSelectedYear(year); togglePicker('year'); };
   const handleSelectMonth = (month) => { setSelectedMonth(month); togglePicker('month'); };
 
-  // ✅ 고정될 헤더와 필터 전체를 렌더링하는 컴포넌트
   const FixedHeader = () => (
     <View style={styles.headerWrapper}>
         <View style={styles.headerContent}>
@@ -101,7 +111,7 @@ const DongDashboardScreen = ({ route, navigation }) => {
         </View>
         <View style={styles.filterSection}>
             <View style={styles.filterRow}>
-                <View style={styles.pickerWrapper}>
+                 <View style={styles.pickerWrapper}>
                     <TouchableOpacity style={styles.pickerHeader} onPress={() => togglePicker('year')}>
                         <Text style={styles.pickerHeaderText}>{selectedYear === '전체' ? '전체년도' : `${selectedYear}년`}</Text>
                         <Text style={styles.pickerHeaderIcon}>{isYearPickerVisible ? '▲' : '▼'}</Text>
@@ -128,20 +138,29 @@ const DongDashboardScreen = ({ route, navigation }) => {
     </View>
   );
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <ActivityIndicator size="large" color="#098710" style={{ marginTop: 80 }} />;
+    }
+    if (error) {
+      return <View style={styles.emptyContainer}><Text style={styles.emptyText}>{error}</Text></View>;
+    }
+    return (
+      <FlatList
+        data={displayData.stores}
+        renderItem={({ item }) => <StoreCard item={item} onPress={() => navigation.navigate('StoreLedger', { storeId: item.id, storeName: item.name })} />}
+        keyExtractor={item => item.id.toString()}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={<View style={styles.emptyContainer}><Text style={styles.emptyText}>해당 기간의 데이터가 없습니다.</Text></View>}
+      />
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ✅ 고정 헤더 컴포넌트 */}
       <FixedHeader />
-      
-      {/* ✅ FlatList를 flex: 1 View로 감싸서 남은 공간을 모두 채우도록 설정 */}
       <View style={{ flex: 1 }}>
-        <FlatList
-          data={displayData.stores}
-          renderItem={({ item }) => <StoreCard item={item} onPress={() => navigation.navigate('StoreLedger', { storeId: item.id, storeName: item.name })} />}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={<View style={styles.emptyContainer}><Text style={styles.emptyText}>해당 기간의 데이터가 없습니다.</Text></View>}
-        />
+        {renderContent()}
       </View>
     </SafeAreaView>
   );
@@ -150,14 +169,14 @@ const DongDashboardScreen = ({ route, navigation }) => {
 // --- Styles ---
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
-  // ✅ 헤더와 필터를 감싸는 고정 컨테이너 스타일
+
   headerWrapper: {
     backgroundColor: '#098710',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     zIndex: 10, // 드롭다운이 FlatList 위에 표시되도록 zIndex 설정
   },
-  // ✅ 기존 header 스타일은 content만 담당하도록 수정
+
   headerContent: { 
     paddingHorizontal: 24, 
     paddingTop: 60,
@@ -169,7 +188,7 @@ const styles = StyleSheet.create({
   totalStatBox: { alignItems: 'center', flex: 1 },
   totalStatLabel: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', marginBottom: 6 },
   totalStatValue: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 22 },
-  // ✅ 필터 섹션 스타일 단순화
+  // 필터 섹션 스타일 단순화
   filterSection: { 
     paddingHorizontal: 20,
     paddingVertical: 24,
@@ -179,7 +198,7 @@ const styles = StyleSheet.create({
   pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#FFFFFF', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   pickerHeaderText: { fontSize: 16, fontWeight: '600', color: '#1F2937' },
   pickerHeaderIcon: { fontSize: 14, color: '#6B7280' },
-  // ✅ 드롭다운 메뉴가 최상단에 오도록 zIndex/elevation 강화
+  // 드롭다운 메뉴가 최상단에 오도록 zIndex/elevation 강화
   pickerGrid: { position: 'absolute', top: 60, left: 0, right: 0, backgroundColor: '#FFFFFF', borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 20, zIndex: 20, padding: 8 },
   pickerItem: { padding: 12, alignItems: 'center' },
   pickerItemText: { fontSize: 16, color: '#374151' },
