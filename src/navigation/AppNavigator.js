@@ -2,6 +2,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 
 // 화면 컴포넌트들을 불러옵니다.
+import WelcomeScreen from '../screens/user/WelcomeScreen';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import DongDashboardScreen from '../screens/dongAdmin/DongDashboardScreen';
 import StoreLedgerScreen from '../screens/dongAdmin/StoreLedgerScreen';
@@ -17,11 +18,12 @@ const Stack = createStackNavigator();
 const AppNavigator = () => {
   return (
     <Stack.Navigator 
-      initialRouteName="DonationEntry"
+      initialRouteName="Welcome"
       screenOptions={{
         headerShown: false
       }}
     >
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="DonationEntry" component={DonationEntryScreen} />
       <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="DongDashboard" component={DongDashboardScreen} />
