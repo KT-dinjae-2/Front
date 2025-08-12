@@ -36,8 +36,7 @@ const DongDashboardScreen = ({ route, navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // const API_BASE_URL = 'http://192.168.99.178:8000'; 
-  const API_BASE_URL = 'https://be168d0c5206.ngrok-free.app';
+  const API_BASE_URL = 'http://43.202.137.139:8000';
 
   const availableYears = ['전체', 2025, 2024];
   const months = ['전체', ...Array.from({ length: 12 }, (_, i) => `${i + 1}월`)];
