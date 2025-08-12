@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import * as XLSX from 'xlsx';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -69,7 +70,49 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
   };
 
   const handleExcelExport = () => {
-    Alert.alert('알림', '엑셀 파일 추출 기능이 실행됩니다.');
+    // 날짜
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하니까 +1 해주고 두 자리 맞춤
+    const dd = String(today.getDate()).padStart(2, '0');
+
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
+    // 시트 데이터
+    const sheets = {
+      총계: XLSX.utils.json_to_sheet([
+        {
+          '총 기부 건수': totals.totalDonationCount || 0,
+          '총 기부 금액': totals.totalDonationAmount || 0,
+          '총 나눔 건수': totals.totalShareCount || 0,
+          '총 나눔 금액': totals.totalShareAmount || 0,
+        },
+      ]),
+      동별: XLSX.utils.json_to_sheet(
+        data.map((dong) => ({
+          이름: dong.name,
+          '기부 건수': dong.donationCount,
+          '기부 금액': dong.donationAmount,
+          '나눔 건수': dong.shareCount,
+          '나눔 금액': dong.shareAmount,
+        }))
+      ),
+    };
+
+    const wb = XLSX.utils.book_new();
+    Object.entries(sheets).forEach(([name, sheet]) => {
+      XLSX.utils.book_append_sheet(wb, sheet, name);
+    });
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DonationData_${dateStr}.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleCardPress = (dong) => {
