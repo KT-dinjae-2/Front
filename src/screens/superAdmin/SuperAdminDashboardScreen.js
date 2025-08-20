@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -8,13 +9,13 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
-// import * as XLSX from 'xlsx'; // 엑셀 기능은 잠시 제외
-// import axios from 'axios'; // API 호출은 잠시 제외
+// import * as XLSX from 'xlsx';
+// import axios from 'axios';
 import { Calendar } from 'react-native-calendars';
 
-// 1. 로컬 JSON 파일을 import 합니다.
+// 로컬 JSON 파일을 import 합니다.
 import mockData from '../../../assets/data/mock-superadmin-data.json';
 
 const PRIMARY_COLOR = '#1A237E';
@@ -40,7 +41,6 @@ const DongCard = ({ item, onPress }) => (
   </View>
 );
 
-// --- 1. 랭킹 모달 컴포넌트 수정 ---
 const RankingModal = ({ visible, onClose, rankingData }) => {
     const getRankIcon = (rank) => {
         if (rank === 1) return '🥇';
@@ -51,7 +51,6 @@ const RankingModal = ({ visible, onClose, rankingData }) => {
 
     return (
         <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
-            {/* justifyContent를 'center'로 변경하여 중앙에 표시 */}
             <View style={[styles.modalOverlay, { justifyContent: 'center' }]}>
                 <View style={styles.rankingModalContent}>
                     <View style={styles.modalHeader}>
@@ -60,7 +59,6 @@ const RankingModal = ({ visible, onClose, rankingData }) => {
                             <Text style={styles.modalCloseButton}>닫기</Text>
                         </TouchableOpacity>
                     </View>
-                    {/* data에 상위 3개만 잘라서 전달 */}
                     <FlatList
                         data={rankingData.slice(0, 3)}
                         keyExtractor={(item) => item.id.toString()}
@@ -114,8 +112,36 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
   }, [data]);
 
 
-  const onDayPress = (day) => { /* ... */ };
-  const handleExcelExport = () => { /* ... */ };
+  const onDayPress = (day) => {
+    const selectedDay = new Date(day.timestamp);
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(selectedDay);
+      setEndDate(null);
+      setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
+    } else {
+      if (selectedDay < startDate) {
+        setStartDate(selectedDay);
+        setEndDate(null);
+        setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
+      } else {
+        setEndDate(selectedDay);
+        let newMarkedDates = {};
+        let currentDate = new Date(startDate);
+        while (currentDate <= selectedDay) {
+            const dateString = formatDate(currentDate);
+            newMarkedDates[dateString] = {
+                color: LIGHT_PRIMARY_COLOR, textColor: 'black',
+                startingDay: currentDate.getTime() === startDate.getTime(),
+                endingDay: currentDate.getTime() === selectedDay.getTime(),
+            };
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        setMarkedDates(newMarkedDates);
+      }
+    }
+  };
+
+  const handleExcelExport = () => { Alert.alert("알림", "엑셀 내보내기 기능") };
   const handleCardPress = (dong) => { navigation.navigate('DongDashboard', { dongName: dong.name, dongId: dong.id }); };
   
   const formatDateForButton = (date) => `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
@@ -133,7 +159,6 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
           <Image source={require('../../../assets/images/original-logo.png')} style={styles.logo} />
           <Text style={styles.title}>전체 기부 내역</Text>
           
-          {/* --- 2. 총계 정보 표시 부분 복원 --- */}
           <View style={styles.totalStatsContainer}>
             <View style={styles.totalStatBox}>
               <Text style={styles.totalStatLabel}>총 기부 건수</Text>
@@ -154,6 +179,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={styles.filterContainer}>
+            {/* 이 버튼을 누르면 isPickerVisible 상태가 true로 바뀝니다. */}
             <TouchableOpacity style={styles.dateRangeButton} onPress={() => setPickerVisible(true)}>
                 <Text style={styles.dateRangeText}>{dateRangeButtonText}</Text>
             </TouchableOpacity>
@@ -184,6 +210,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
         />
       )}
       
+      {/* isPickerVisible이 true일 때 이 모달이 나타납니다. */}
       <Modal visible={isPickerVisible} transparent={true} animationType="slide" onRequestClose={() => setPickerVisible(false)}>
         <View style={styles.modalOverlay}>
             <View style={styles.calendarModalContent}>
