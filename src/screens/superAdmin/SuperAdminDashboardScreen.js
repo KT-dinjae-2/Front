@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -40,7 +40,44 @@ const DongCard = ({ item, onPress }) => (
   </View>
 );
 
-const API_BASE_URL = 'http://43.202.137.139:8000/api';
+// --- 1. 랭킹 모달 컴포넌트 수정 ---
+const RankingModal = ({ visible, onClose, rankingData }) => {
+    const getRankIcon = (rank) => {
+        if (rank === 1) return '🥇';
+        if (rank === 2) return '🥈';
+        if (rank === 3) return '🥉';
+        return `${rank}.`;
+    };
+
+    return (
+        <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+            {/* justifyContent를 'center'로 변경하여 중앙에 표시 */}
+            <View style={[styles.modalOverlay, { justifyContent: 'center' }]}>
+                <View style={styles.rankingModalContent}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>기부 금액 랭킹</Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Text style={styles.modalCloseButton}>닫기</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {/* data에 상위 3개만 잘라서 전달 */}
+                    <FlatList
+                        data={rankingData.slice(0, 3)}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item, index }) => (
+                            <View style={styles.rankItem}>
+                                <Text style={styles.rankNumber}>{getRankIcon(index + 1)}</Text>
+                                <Text style={styles.rankName}>{item.name}</Text>
+                                <Text style={styles.rankAmount}>{formatNumber(item.donationAmount)}원</Text>
+                            </View>
+                        )}
+                    />
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
 
 const SuperAdminDashboardScreen = ({ navigation }) => {
   const [totals, setTotals] = useState({});
@@ -51,6 +88,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
   const [endDate, setEndDate] = useState(null);
   const [markedDates, setMarkedDates] = useState({});
   const [isPickerVisible, setPickerVisible] = useState(false);
+  const [isRankingVisible, setRankingVisible] = useState(false);
 
   const formatDate = (date) => date.toISOString().split('T')[0];
 
@@ -60,75 +98,25 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
 
   const fetchData = async () => {
     setLoading(true);
-
-    // --- 2. API 호출 대신 로컬 JSON 데이터 사용 ---
     setTimeout(() => {
       if (startDate && endDate) {
-        // 날짜 선택 시, 필터링된 것처럼 보이기 위해 데이터 일부만 표시
-        setData(mockData.dongs.slice(0, 2) || []);
+        setData(mockData.dongs.slice(0, 10) || []);
       } else {
-        // 날짜 선택 안 했을 시 전체 데이터 표시
         setData(mockData.dongs || []);
       }
       setTotals(mockData.totals || {});
       setLoading(false);
-    }, 500); // 0.5초 딜레이로 로딩 효과
-
-    /*
-    // --- 🚨 기존 API 호출 로직 (주석 처리) ---
-    try {
-      const params = {};
-      if (startDate && endDate) {
-        params.start_date = formatDate(startDate);
-        params.end_date = formatDate(endDate);
-      }
-      const response = await axios.get(`${API_BASE_URL}/dongs/totals/`, { params });
-      setTotals(response.data.totals || {});
-      setData(response.data.dongs || []);
-    } catch (error) {
-      Alert.alert('에러', '데이터를 불러오는데 실패했습니다. 서버 연결을 확인해주세요.');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-    */
+    }, 500);
   };
 
+  const rankingData = useMemo(() => {
+    return [...data].sort((a, b) => b.donationAmount - a.donationAmount);
+  }, [data]);
 
-  const onDayPress = (day) => {
-    const selectedDay = new Date(day.timestamp);
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(selectedDay);
-      setEndDate(null);
-      setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
-    } else {
-      if (selectedDay < startDate) {
-        setStartDate(selectedDay);
-        setEndDate(null);
-        setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
-      } else {
-        setEndDate(selectedDay);
-        let newMarkedDates = {};
-        let currentDate = new Date(startDate);
-        while (currentDate <= selectedDay) {
-            const dateString = formatDate(currentDate);
-            newMarkedDates[dateString] = {
-                color: LIGHT_PRIMARY_COLOR, textColor: 'black',
-                startingDay: currentDate.getTime() === startDate.getTime(),
-                endingDay: currentDate.getTime() === selectedDay.getTime(),
-            };
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        setMarkedDates(newMarkedDates);
-      }
-    }
-  };
 
-  const handleExcelExport = () => { /* ... 엑셀 내보내기 로직 ... */ };
-
-  const handleCardPress = (dong) => {
-    navigation.navigate('DongDashboard', { dongName: dong.name, dongId: dong.id });
-  };
+  const onDayPress = (day) => { /* ... */ };
+  const handleExcelExport = () => { /* ... */ };
+  const handleCardPress = (dong) => { navigation.navigate('DongDashboard', { dongName: dong.name, dongId: dong.id }); };
   
   const formatDateForButton = (date) => `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
   let dateRangeButtonText = '날짜 선택';
@@ -144,7 +132,8 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <Image source={require('../../../assets/images/original-logo.png')} style={styles.logo} />
           <Text style={styles.title}>전체 기부 내역</Text>
-
+          
+          {/* --- 2. 총계 정보 표시 부분 복원 --- */}
           <View style={styles.totalStatsContainer}>
             <View style={styles.totalStatBox}>
               <Text style={styles.totalStatLabel}>총 기부 건수</Text>
@@ -164,9 +153,14 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.dateRangeButton} onPress={() => setPickerVisible(true)}>
-            <Text style={styles.dateRangeText}>{dateRangeButtonText}</Text>
-        </TouchableOpacity>
+        <View style={styles.filterContainer}>
+            <TouchableOpacity style={styles.dateRangeButton} onPress={() => setPickerVisible(true)}>
+                <Text style={styles.dateRangeText}>{dateRangeButtonText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rankingButton} onPress={() => setRankingVisible(true)}>
+                <Text style={styles.rankingButtonText}>🏆 랭킹 보기</Text>
+            </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -192,7 +186,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       
       <Modal visible={isPickerVisible} transparent={true} animationType="slide" onRequestClose={() => setPickerVisible(false)}>
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={styles.calendarModalContent}>
                 <Calendar
                     onDayPress={onDayPress}
                     markingType={'period'}
@@ -204,6 +198,12 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
             </View>
         </View>
       </Modal>
+
+      <RankingModal
+        visible={isRankingVisible}
+        onClose={() => setRankingVisible(false)}
+        rankingData={rankingData}
+      />
     </SafeAreaView>
   );
 };
@@ -235,16 +235,30 @@ const styles = StyleSheet.create({
   totalStatBox: { alignItems: 'center', flex: 1 },
   totalStatLabel: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', marginBottom: 6 },
   totalStatValue: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' },
-  dateRangeButton: {
-      alignSelf: 'center',
+  filterContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
       marginTop: 20,
+      paddingHorizontal: 20,
+  },
+  dateRangeButton: {
+      flex: 1,
       paddingVertical: 12,
-      paddingHorizontal: 30,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      elevation: 3,
+      marginRight: 8,
+  },
+  dateRangeText: { fontSize: 16, fontWeight: 'bold', color: PRIMARY_COLOR, textAlign: 'center' },
+  rankingButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 20,
       backgroundColor: '#FFFFFF',
       borderRadius: 20,
       elevation: 3,
   },
-  dateRangeText: { fontSize: 16, fontWeight: 'bold', color: PRIMARY_COLOR },
+  rankingButtonText: { fontSize: 16, fontWeight: 'bold', color: PRIMARY_COLOR },
   listContainer: { paddingVertical: 16, paddingBottom: 40 },
   card: {
     backgroundColor: '#FFFFFF',
@@ -268,7 +282,7 @@ const styles = StyleSheet.create({
   },
   detailButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   excelButton: {
-    backgroundColor: PRIMARY_COLOR, // 엑셀 색상
+    backgroundColor: PRIMARY_COLOR,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -280,9 +294,17 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
   emptyText: { fontSize: 16, color: '#6B7280', textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
+  calendarModalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 8, paddingBottom: 30, maxHeight: '60%' },
+  rankingModalContent: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingBottom: 20, marginHorizontal: 20, maxHeight: '50%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold' },
+  modalCloseButton: { fontSize: 16, color: PRIMARY_COLOR },
   modalConfirmButton: { backgroundColor: PRIMARY_COLOR, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 16, marginHorizontal: 20 },
   modalConfirmButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  rankItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  rankNumber: { fontSize: 16, fontWeight: 'bold', color: '#6B7280', width: 40 },
+  rankName: { flex: 1, fontSize: 16, color: '#1F2937' },
+  rankAmount: { fontSize: 16, fontWeight: '600', color: PRIMARY_COLOR },
 });
 
 export default SuperAdminDashboardScreen;
