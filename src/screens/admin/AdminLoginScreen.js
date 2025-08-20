@@ -50,7 +50,6 @@ const AdminLoginScreen = ({ navigation }) => {
               <Text style={region ? styles.fieldValue : styles.placeholder}>
                 {region ? region.name : '눌러서 선택하세요'}
               </Text>
-              <Text style={styles.icon}>☆</Text>
               <Text style={styles.icon}>〉</Text>
             </TouchableOpacity>
           </View>

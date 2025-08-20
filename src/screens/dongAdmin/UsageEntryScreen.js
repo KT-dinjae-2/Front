@@ -2,19 +2,13 @@ import React, { useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
+const PRIMARY_COLOR = '#1A237E';
+
 // 숫자 및 날짜 포맷팅 함수
 const formatNumber = (num) => {
     if (!num) return '';
     const numericValue = num.toString().replace(/[^0-9]/g, '');
     return numericValue.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
-};
-
-const formatDate = (date) => {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
 };
 
 // 맞춤형 삭제 확인 팝업(모달) 컴포넌트
@@ -50,7 +44,7 @@ const SuccessModal = ({ visible, onConfirm, entryCount }) => {
         <Modal transparent={true} visible={visible} onRequestClose={onConfirm} animationType="fade">
             <View style={styles.modalBackdrop}>
                 <View style={styles.confirmationModalContent}>
-                    <Text style={styles.successIcon}>✅</Text>
+                    <Text style={styles.successIcon}>🎉</Text>
                     <Text style={styles.modalTitle}>등록 완료</Text>
                     <Text style={styles.modalSubMessage}>{`${entryCount}개의 나눔 내역이 성공적으로 등록되었습니다.`}</Text>
                     <TouchableOpacity style={[styles.modalButton, styles.okButton]} onPress={onConfirm}>
@@ -139,16 +133,18 @@ const UsageEntryScreen = ({ route, navigation }) => {
     <View style={styles.formCard}>
       <View style={styles.formHeader}>
         <Text style={styles.label}>나눔 내역</Text>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeletePress(item.id)}>
-          <Text style={styles.deleteButtonText}>삭제</Text>
-        </TouchableOpacity>
+        {entries.length > 1 && (
+            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeletePress(item.id)}>
+              <Text style={styles.deleteButtonText}>삭제</Text>
+            </TouchableOpacity>
+        )}
       </View>
       
       <Text style={styles.subLabel}>나눔 금액</Text>
       <TextInput
         style={styles.input}
-        placeholder="₩"
-        placeholderTextColor="#B0B0B0"
+        placeholder="금액 입력"
+        placeholderTextColor="#BDBDBD"
         keyboardType="number-pad"
         value={formatNumber(item.amount)}
         onChangeText={(text) => handleInputChange(item.id, 'amount', text)}
@@ -168,13 +164,12 @@ const UsageEntryScreen = ({ route, navigation }) => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          {/* ✅ 헤더 */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                 <Text style={styles.backButtonText}>‹</Text>
             </TouchableOpacity>
-            <Text style={styles.storeTitle}>{storeName}</Text>
-            <Text style={styles.cloverIcon}>✤</Text>
+            <Text style={styles.headerTitle}>{storeName}</Text>
+            <View style={{width: 40}} />
           </View>
 
           <FlatList
@@ -185,6 +180,7 @@ const UsageEntryScreen = ({ route, navigation }) => {
             ListFooterComponent={
               <TouchableOpacity style={styles.addButton} onPress={addEntry}>
                 <Text style={styles.addButtonIcon}>+</Text>
+                <Text style={styles.addButtonLabel}>내역 추가</Text>
               </TouchableOpacity>
             }
           />
@@ -202,8 +198,8 @@ const UsageEntryScreen = ({ route, navigation }) => {
           <View style={styles.calendarModalContent}>
             <Calendar
               onDayPress={onDayPress}
-              markedDates={{ [entries.find(e => e.id === currentEntryId)?.date.replace(/\//g, '-')]: {selected: true, selectedColor: '#098710'} }}
-              theme={{ arrowColor: '#098710', todayTextColor: '#098710' }}
+              markedDates={{ [entries.find(e => e.id === currentEntryId)?.date.replace(/\//g, '-')]: {selected: true, selectedColor: PRIMARY_COLOR} }}
+              theme={{ arrowColor: PRIMARY_COLOR, todayTextColor: PRIMARY_COLOR }}
             />
           </View>
         </TouchableOpacity>
@@ -225,48 +221,42 @@ const UsageEntryScreen = ({ route, navigation }) => {
   );
 };
 
+// UI 테마에 맞게 스타일 전체 수정
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  container: { flex: 1, backgroundColor: '#E8F5E9' },
-  // ✅ 헤더 스타일 수정
-  header: { 
-    alignItems: 'center', 
-    paddingTop: 60, 
-    paddingBottom: 20, 
-    backgroundColor: '#FFFFFF' 
+  container: { flex: 1, backgroundColor: '#F4F6F8' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? 20 : 10,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE'
   },
-  // ✅ 뒤로가기 버튼 스타일 추가
-  backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 20 : 50,
-    left: 16,
-    zIndex: 10,
-    padding: 8,
-  },
-  backButtonText: {
-    fontSize: 28,
-    color: '#098710',
-    fontWeight: 'bold',
-  },
-  storeTitle: { fontSize: 32, fontWeight: 'bold', color: '#1F2937' },
-  cloverIcon: { fontSize: 30, color: '#098710', marginTop: 12 },
+  backButton: { padding: 8, marginLeft: -8 },
+  backButtonText: { fontSize: 32, color: PRIMARY_COLOR, fontWeight: 'bold' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
   listContainer: { padding: 20 },
-  formCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
+  formCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20, marginBottom: 20, elevation: 2 },
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   label: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
-  subLabel: { fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  subLabel: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 },
   input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1F2937' },
   dateInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'center' },
   dateText: { fontSize: 16, color: '#1F2937' },
   deleteButton: { backgroundColor: '#FEE2E2', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   deleteButtonText: { color: '#EF4444', fontSize: 14, fontWeight: 'bold' },
-  addButton: { alignSelf: 'center', width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', marginTop: 8 },
-  addButtonIcon: { fontSize: 28, color: '#098710', fontWeight: 'bold' },
-  footer: { padding: 20, backgroundColor: '#E8F5E9' },
-  submitButton: { backgroundColor: '#098710', borderRadius: 16, paddingVertical: 18, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5 },
+  addButton: { alignSelf: 'center', alignItems: 'center', justifyContent: 'center', width: '100%', height: 60, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderStyle: 'dashed', borderColor: '#D1D9E6', marginTop: 8 },
+  addButtonIcon: { fontSize: 24, color: PRIMARY_COLOR },
+  addButtonLabel: { fontSize: 14, color: PRIMARY_COLOR, fontWeight: '600', marginTop: 2 },
+  footer: { padding: 20, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEE' },
+  submitButton: { backgroundColor: PRIMARY_COLOR, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
   submitButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  calendarModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20, width: '100%' },
+  calendarModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 10, width: '100%' },
   confirmationModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 24, width: '100%', alignItems: 'center' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 12 },
   modalMessage: { fontSize: 16, color: '#374151', textAlign: 'center', lineHeight: 26, fontWeight: '500' },
@@ -275,10 +265,10 @@ const styles = StyleSheet.create({
   modalButton: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginHorizontal: 6 },
   cancelButton: { backgroundColor: '#E5E7EB' },
   cancelButtonText: { color: '#374151', fontSize: 16, fontWeight: 'bold' },
-  confirmButton: { backgroundColor: '#EF4444' },
+  confirmButton: { backgroundColor: '#D32F2F' },
   confirmButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  successIcon: { fontSize: 32, marginBottom: 12 },
-  okButton: { backgroundColor: '#098710', width: '100%' },
+  successIcon: { fontSize: 40, marginBottom: 12 },
+  okButton: { backgroundColor: PRIMARY_COLOR, width: '100%' },
   okButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
 

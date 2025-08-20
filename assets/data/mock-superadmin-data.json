@@ -1,0 +1,14 @@
+{
+    "totals": {
+      "totalDonationCount": 150,
+      "totalDonationAmount": 2550000,
+      "totalShareCount": 120,
+      "totalShareAmount": 1890000
+    },
+    "dongs": [
+      { "id": 1, "name": "왕십리2동", "donationCount": 25, "donationAmount": 450000, "shareCount": 20, "shareAmount": 380000 },
+      { "id": 2, "name": "마장동", "donationCount": 18, "donationAmount": 320000, "shareCount": 15, "shareAmount": 290000 },
+      { "id": 3, "name": "행당1동", "donationCount": 30, "donationAmount": 550000, "shareCount": 28, "shareAmount": 480000 },
+      { "id": 4, "name": "성수1가제2동", "donationCount": 22, "donationAmount": 410000, "shareCount": 18, "shareAmount": 350000 }
+    ]
+  }

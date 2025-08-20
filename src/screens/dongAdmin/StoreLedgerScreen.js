@@ -1,86 +1,109 @@
-import React from 'react';
-import { FlatList, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import mockTransactionsData from '../../../assets/data/mock-store-ledger-data.json';
 
-// API 연동 전 임시 데이터
-const mockTransactions = [
-  { id: '1', type: '기부', amount: 10000, date: '2025/07/28' },
-  { id: '2', type: '기부', amount: 5000, date: '2025/07/29' },
-  { id: '3', type: '나눔', amount: 5000, date: '2025/07/30' },
-  { id: '4', type: '기부', amount: 15000, date: '2025/07/31' },
-  { id: '5', type: '나눔', amount: 20000, date: '2025/08/01' },
-  { id: '6', type: '기부', amount: 7000, date: '2025/08/02' },
-];
+const PRIMARY_COLOR = '#1A237E';
+const formatNumber = (num) => num ? num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') : '0';
 
-const formatNumber = (num) => num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
-
-// 거래 내역 아이템 컴포넌트
-const TransactionItem = ({ item, onPress, isClickable }) => {
+const TransactionItem = ({ item, onPress }) => {
   const isDonation = item.type === '기부';
+  const isClickable = item.type === '나눔';
+
   return (
     <TouchableOpacity onPress={onPress} disabled={!isClickable} activeOpacity={0.7}>
-      <View style={[styles.transactionItem, !isClickable && styles.disabledItem]}>
+      <View style={styles.transactionItem}>
         <View style={[styles.typeTag, isDonation ? styles.donationTag : styles.shareTag]}>
           <Text style={styles.typeText}>{item.type}</Text>
         </View>
-        <Text style={[styles.amountText, { color: isDonation ? '#D9534F' : '#428BCA' }]}>
+        <Text style={[styles.amountText, { color: isDonation ? '#D32F2F' : PRIMARY_COLOR }]}>
           {isDonation ? '+' : '-'} {formatNumber(item.amount)}원
         </Text>
-        <Text style={styles.dateText}>{item.date}</Text>
+        <Text style={styles.dateText}>{item.date.replace(/-/g, '/')}</Text>
       </View>
     </TouchableOpacity>
   );
 };
 
 const StoreLedgerScreen = ({ route, navigation }) => {
-  // DongDashboardScreen에서 전달받은 모든 정보를 사용합니다.
   const { storeName, storeId, dongName } = route.params;
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchTransactions = () => {
+        setIsLoading(true);
+        setError(null);
+        setTimeout(() => {
+          const sortedData = mockTransactionsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+          setTransactions(sortedData);
+          setIsLoading(false);
+        }, 500);
+      };
+      
+      fetchTransactions();
+    }, [storeId])
+  );
+  
+  const summary = useMemo(() => {
+    let donationCount = 0;
+    let shareCount = 0;
+    transactions.forEach(item => {
+      if (item.type === '기부') donationCount++;
+      else if (item.type === '나눔') shareCount++;
+    });
+    return { donationCount, shareCount };
+  }, [transactions]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ✅ 뒤로가기 버튼을 헤더와 분리하여 절대 위치로 배치 */}
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-        <Text style={styles.backButtonText}>‹</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.container}>
-        {/* ✅ 원래의 헤더 디자인으로 복원 */}
-        <View style={styles.header}>
-          <Text style={styles.storeTitle}>{storeName || '가게 이름'}</Text>
-          <Text style={styles.cloverIcon}>✤</Text>
-        </View>
-
-        {/* 거래 내역 리스트 컨테이너 */}
-        <View style={styles.ledgerContainer}>
-          <FlatList
-            ListHeaderComponent={<Text style={styles.ledgerTitle}>전체</Text>}
-            data={mockTransactions}
-            renderItem={({ item }) => {
-              const isClickable = item.type === '나눔';
-              return (
-                <TransactionItem 
-                  item={item} 
-                  isClickable={isClickable}
-                  onPress={
-                    isClickable 
-                      ? () => navigation.navigate('UsageDetail', { storeName, item, dongName })
-                      : null
-                  }
-                />
-              )
-            }}
-            keyExtractor={item => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-          />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.storeTitle}>{storeName || '가게 이름'}</Text>
+        <View style={styles.summaryContainer}>
+            <Text style={styles.summaryText}>총 기부 {summary.donationCount}건</Text>
+            <Text style={styles.summaryText}>총 나눔 {summary.shareCount}건</Text>
         </View>
       </View>
 
-      {/* 추가 버튼 */}
+      <View style={styles.ledgerContainer}>
+        {/* 👇 이 부분에 로딩 및 리스트 표시 로직을 다시 추가했습니다. */}
+        {isLoading ? (
+          <ActivityIndicator style={{ marginTop: 50 }} size="large" color={PRIMARY_COLOR} />
+        ) : error ? (
+          <Text style={styles.emptyText}>{error}</Text>
+        ) : (
+          <FlatList
+            ListHeaderComponent={<Text style={styles.ledgerTitle}>전체</Text>}
+            data={transactions}
+            renderItem={({ item }) => (
+              <TransactionItem 
+                item={item}
+                onPress={
+                  item.type === '나눔' 
+                    ? () => navigation.navigate('UsageDetail', { 
+                        storeName: storeName, 
+                        item: item, 
+                        dongName: dongName
+                      })
+                    : null
+                }
+              />
+            )}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            ListEmptyComponent={<Text style={styles.emptyText}>거래 내역이 없습니다.</Text>}
+          />
+        )}
+      </View>
+
       <TouchableOpacity 
         style={styles.fab}
-        onPress={() => navigation.navigate('UsageEntry', { 
-            storeName: storeName, 
-            storeId: storeId 
-        })}
+        onPress={() => navigation.navigate('UsageEntry', { storeName, storeId })}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
@@ -89,54 +112,54 @@ const StoreLedgerScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F4F5F7',
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: {
+    paddingTop: Platform.OS === 'android' ? 40 : 60,
+    paddingBottom: 24,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
   },
-  container: {
-    flex: 1,
-  },
-  // ✅ 뒤로가기 버튼 스타일 수정
   backButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 20 : 50,
+    top: Platform.OS === 'android' ? 30 : 50,
     left: 16,
     zIndex: 10,
     padding: 8,
   },
   backButtonText: {
-    fontSize: 28,
-    color: '#098710',
+    fontSize: 32,
+    color: PRIMARY_COLOR,
     fontWeight: 'bold',
-  },
-  // ✅ 헤더 스타일 복원
-  header: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
   },
   storeTitle: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#000000',
+    marginBottom: 16,
   },
-  cloverIcon: {
-    fontSize: 30,
-    color: '#098710',
-    marginTop: 12,
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+  },
+  summaryText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
   ledgerContainer: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#E0F7FA',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24
   },
   ledgerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-    marginTop: 20,
+    color: '#00796B',
     marginBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   transactionItem: {
     flexDirection: 'row',
@@ -144,42 +167,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  disabledItem: {
-    // opacity: 0.6,
+    marginBottom: 12
   },
   typeTag: {
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    marginRight: 12,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 12
   },
-  donationTag: {
-    backgroundColor: '#D9534F',
-  },
-  shareTag: {
-    backgroundColor: '#428BCA',
-  },
-  typeText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  amountText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
+  donationTag: { backgroundColor: '#FFCDD2' },
+  shareTag: { backgroundColor: '#BBDEFB' },
+  typeText: { fontWeight: 'bold', fontSize: 14 },
+  amountText: { flex: 1, fontSize: 16, fontWeight: '600' },
+  dateText: { fontSize: 14, color: '#6B7280' },
   fab: {
     position: 'absolute',
     right: 24,
@@ -187,20 +187,22 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#098710',
+    backgroundColor: PRIMARY_COLOR,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
+    elevation: 8
   },
   fabIcon: {
     color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 32,
+    fontSize: 32,
+    lineHeight: 34
   },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#6B7280'
+  }
 });
 
 export default StoreLedgerScreen;

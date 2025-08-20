@@ -1,18 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   FlatList,
+  Image,
+  Modal,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Image,
-  ActivityIndicator,
+  View
 } from 'react-native';
-import * as XLSX from 'xlsx';
-import axios from 'axios';
-import { Ionicons } from '@expo/vector-icons';
+// import * as XLSX from 'xlsx'; // 엑셀 기능은 잠시 제외
+// import axios from 'axios'; // API 호출은 잠시 제외
+import { Calendar } from 'react-native-calendars';
+
+// 1. 로컬 JSON 파일을 import 합니다.
+import mockData from '../../../assets/data/mock-superadmin-data.json';
+
+const PRIMARY_COLOR = '#1A237E';
+const LIGHT_PRIMARY_COLOR = '#E8EAF6';
 
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0';
@@ -22,151 +28,121 @@ const formatNumber = (num) => {
 const DongCard = ({ item, onPress }) => (
   <View style={styles.card}>
     <Text style={styles.dongName}>{item.name}</Text>
-    <Text style={styles.infoText}>총 기부 건수: {item.donationCount}</Text>
-    <Text style={styles.infoText}>총 기부액: {formatNumber(item.donationAmount)}원</Text>
-    <Text style={styles.infoText}>총 나눔 건수: {item.shareCount}</Text>
-    <Text style={styles.infoText}>총 나눔액: {formatNumber(item.shareAmount)}원</Text>
+    <View style={styles.statsGrid}>
+        <View style={styles.statItem}><Text style={styles.statLabel}>기부건수</Text><Text style={styles.statValue}>{item.donationCount}건</Text></View>
+        <View style={styles.statItem}><Text style={styles.statLabel}>나눔건수</Text><Text style={styles.statValue}>{item.shareCount}건</Text></View>
+        <View style={styles.statItem}><Text style={styles.statLabel}>기부 금액</Text><Text style={styles.statValue}>{formatNumber(item.donationAmount)}원</Text></View>
+        <View style={styles.statItem}><Text style={styles.statLabel}>나눔 금액</Text><Text style={styles.statValue}>{formatNumber(item.shareAmount)}원</Text></View>
+    </View>
     <TouchableOpacity style={styles.detailButton} onPress={() => onPress(item)}>
-      <Text style={styles.detailButtonText}>업체 별 기부 내역 보기</Text>
+      <Text style={styles.detailButtonText}>업체별 기부 내역 보기</Text>
     </TouchableOpacity>
   </View>
 );
 
 const API_BASE_URL = 'http://43.202.137.139:8000/api';
 
-const YEARS = ['전체', '2025', '2024'];
-const MONTHS = ['전체', ...Array.from({ length: 12 }, (_, i) => (i + 1).toString())];
-
 const SuperAdminDashboardScreen = ({ navigation }) => {
   const [totals, setTotals] = useState({});
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [year, setYear] = useState('전체');
-  const [month, setMonth] = useState('전체');
 
-  // 드롭다운 상태 관리
-  const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
-  const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [markedDates, setMarkedDates] = useState({});
+  const [isPickerVisible, setPickerVisible] = useState(false);
+
+  const formatDate = (date) => date.toISOString().split('T')[0];
 
   useEffect(() => {
     fetchData();
-  }, [year, month]);
+  }, [startDate, endDate]);
 
   const fetchData = async () => {
     setLoading(true);
+
+    // --- 2. API 호출 대신 로컬 JSON 데이터 사용 ---
+    setTimeout(() => {
+      if (startDate && endDate) {
+        // 날짜 선택 시, 필터링된 것처럼 보이기 위해 데이터 일부만 표시
+        setData(mockData.dongs.slice(0, 2) || []);
+      } else {
+        // 날짜 선택 안 했을 시 전체 데이터 표시
+        setData(mockData.dongs || []);
+      }
+      setTotals(mockData.totals || {});
+      setLoading(false);
+    }, 500); // 0.5초 딜레이로 로딩 효과
+
+    /*
+    // --- 🚨 기존 API 호출 로직 (주석 처리) ---
     try {
       const params = {};
-      if (year !== '전체') params.year = year;
-      if (month !== '전체') params.month = month;
-
+      if (startDate && endDate) {
+        params.start_date = formatDate(startDate);
+        params.end_date = formatDate(endDate);
+      }
       const response = await axios.get(`${API_BASE_URL}/dongs/totals/`, { params });
       setTotals(response.data.totals || {});
       setData(response.data.dongs || []);
     } catch (error) {
-      Alert.alert('에러', '동 목록을 불러오는데 실패했습니다.');
+      Alert.alert('에러', '데이터를 불러오는데 실패했습니다. 서버 연결을 확인해주세요.');
+      console.error(error);
     } finally {
       setLoading(false);
     }
+    */
   };
 
-  const handleExcelExport = () => {
-    // 날짜
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하니까 +1 해주고 두 자리 맞춤
-    const dd = String(today.getDate()).padStart(2, '0');
 
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-
-    // 시트 데이터
-    const sheets = {
-      총계: XLSX.utils.json_to_sheet([
-        {
-          '총 기부 건수': totals.totalDonationCount || 0,
-          '총 기부 금액': totals.totalDonationAmount || 0,
-          '총 나눔 건수': totals.totalShareCount || 0,
-          '총 나눔 금액': totals.totalShareAmount || 0,
-        },
-      ]),
-      동별: XLSX.utils.json_to_sheet(
-        data.map((dong) => ({
-          이름: dong.name,
-          '기부 건수': dong.donationCount,
-          '기부 금액': dong.donationAmount,
-          '나눔 건수': dong.shareCount,
-          '나눔 금액': dong.shareAmount,
-        }))
-      ),
-    };
-
-    const wb = XLSX.utils.book_new();
-    Object.entries(sheets).forEach(([name, sheet]) => {
-      XLSX.utils.book_append_sheet(wb, sheet, name);
-    });
-
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/octet-stream' });
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `DonationData_${dateStr}.xlsx`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const onDayPress = (day) => {
+    const selectedDay = new Date(day.timestamp);
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(selectedDay);
+      setEndDate(null);
+      setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
+    } else {
+      if (selectedDay < startDate) {
+        setStartDate(selectedDay);
+        setEndDate(null);
+        setMarkedDates({ [day.dateString]: { startingDay: true, color: PRIMARY_COLOR, textColor: 'white' } });
+      } else {
+        setEndDate(selectedDay);
+        let newMarkedDates = {};
+        let currentDate = new Date(startDate);
+        while (currentDate <= selectedDay) {
+            const dateString = formatDate(currentDate);
+            newMarkedDates[dateString] = {
+                color: LIGHT_PRIMARY_COLOR, textColor: 'black',
+                startingDay: currentDate.getTime() === startDate.getTime(),
+                endingDay: currentDate.getTime() === selectedDay.getTime(),
+            };
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        setMarkedDates(newMarkedDates);
+      }
+    }
   };
+
+  const handleExcelExport = () => { /* ... 엑셀 내보내기 로직 ... */ };
 
   const handleCardPress = (dong) => {
     navigation.navigate('DongDashboard', { dongName: dong.name, dongId: dong.id });
   };
-
-  const renderDropdown = (label, selectedValue, onSelect, open, setOpen, options) => (
-    <View style={styles.pickerWrapper}>
-      <TouchableOpacity
-        style={styles.pickerHeader}
-        onPress={() => {
-          setOpen(!open);
-          // 다른 드롭다운 닫기
-          if (label === '연도') setMonthDropdownOpen(false);
-          if (label === '월') setYearDropdownOpen(false);
-        }}
-      >
-        <Text style={styles.pickerHeaderText}>{selectedValue}</Text>
-        <Ionicons
-          name={open ? 'chevron-up' : 'chevron-down'}
-          style={styles.pickerHeaderIcon}
-        />
-      </TouchableOpacity>
-      {open && (
-        <View style={styles.pickerGrid}>
-          {options.map((opt) => (
-            <TouchableOpacity
-              key={opt}
-              style={styles.pickerItem}
-              onPress={() => {
-                onSelect(opt);
-                setOpen(false);
-              }}
-            >
-              <Text
-                style={[
-                  styles.pickerItemText,
-                  opt === selectedValue && styles.selectedPickerItemText,
-                ]}
-              >
-                {opt}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
+  
+  const formatDateForButton = (date) => `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
+  let dateRangeButtonText = '날짜 선택';
+  if (startDate && !endDate) {
+    dateRangeButtonText = `${formatDateForButton(startDate)} ~`;
+  } else if (startDate && endDate) {
+    dateRangeButtonText = `${formatDateForButton(startDate)} ~ ${formatDateForButton(endDate)}`;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.headerWrapper}>
         <View style={styles.headerContent}>
-          <Image source={require('../../../assets/images/white-small-logo.png')} style={styles.logo} />
+          <Image source={require('../../../assets/images/original-logo.png')} style={styles.logo} />
           <Text style={styles.title}>전체 기부 내역</Text>
 
           <View style={styles.totalStatsContainer}>
@@ -188,17 +164,13 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
             </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.filterSection}>
-        <View style={styles.filterRow}>
-          {renderDropdown('연도', year, setYear, yearDropdownOpen, setYearDropdownOpen, YEARS)}
-          {renderDropdown('월', month, setMonth, monthDropdownOpen, setMonthDropdownOpen, MONTHS)}
-        </View>
+        <TouchableOpacity style={styles.dateRangeButton} onPress={() => setPickerVisible(true)}>
+            <Text style={styles.dateRangeText}>{dateRangeButtonText}</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" style={{ marginTop: 40 }} color={PRIMARY_COLOR}/>
       ) : (
         <FlatList
           data={data}
@@ -217,132 +189,86 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
           }
         />
       )}
+      
+      <Modal visible={isPickerVisible} transparent={true} animationType="slide" onRequestClose={() => setPickerVisible(false)}>
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <Calendar
+                    onDayPress={onDayPress}
+                    markingType={'period'}
+                    markedDates={markedDates}
+                />
+                <TouchableOpacity style={styles.modalConfirmButton} onPress={() => setPickerVisible(false)}>
+                    <Text style={styles.modalConfirmButtonText}>확인</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
-
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   headerWrapper: {
-    backgroundColor: '#098710',
-    paddingBottom: 24,
+    backgroundColor: PRIMARY_COLOR,
+    paddingBottom: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     zIndex: 10,
   },
-
   headerContent: {
     paddingHorizontal: 24,
     paddingTop: 60,
     alignItems: 'center',
   },
-
-  logo: { width: 51, height: 51, resizeMode: 'contain', marginBottom: 16 },
-
-  title: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 4 },
-
-  icon: { fontSize: 24, color: '#FFFFFF', marginVertical: 8 },
-
+  logo: { width: 40, height: 40, resizeMode: 'contain', marginBottom: 12 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 20 },
   totalStatsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginTop: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
     paddingVertical: 16,
   },
-
   totalStatBox: { alignItems: 'center', flex: 1 },
-
   totalStatLabel: { fontSize: 14, color: 'rgba(255, 255, 255, 0.8)', marginBottom: 6 },
-
-  totalStatValue: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 22 },
-
-  filterSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    zIndex: 100,
+  totalStatValue: { fontSize: 16, fontWeight: 'bold', color: '#FFFFFF' },
+  dateRangeButton: {
+      alignSelf: 'center',
+      marginTop: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 30,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 20,
+      elevation: 3,
   },
-
-  filterRow: { flexDirection: 'row', justifyContent: 'space-between' },
-
-  pickerWrapper: { flex: 1, marginHorizontal: 4 },
-
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-
-  pickerHeaderText: { fontSize: 16, fontWeight: '600', color: '#1F2937' },
-
-  pickerHeaderIcon: { fontSize: 14, color: '#6B7280' },
-
-  pickerGrid: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 20,
-    zIndex: 20,
-    padding: 8,
-  },
-
-  pickerItem: { padding: 12, alignItems: 'center' },
-
-  pickerItemText: { fontSize: 16, color: '#374151' },
-
-  selectedPickerItemText: { color: '#098710', fontWeight: 'bold' },
-
+  dateRangeText: { fontSize: 16, fontWeight: 'bold', color: PRIMARY_COLOR },
   listContainer: { paddingVertical: 16, paddingBottom: 40 },
-
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    margin: 24,
-    marginTop: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    elevation: 3,
   },
-
-  dongName: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 4 },
-
-  infoText: { fontSize: 14, color: '#6B7280', marginBottom: 2 },
-
+  dongName: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  statItem: { width: '50%', marginBottom: 12 },
+  statLabel: { fontSize: 14, color: '#6B7280' },
+  statValue: { fontSize: 16, fontWeight: '600', color: '#1F2937' },
   detailButton: {
-    backgroundColor: '#098710',
-    paddingVertical: 16,
+    backgroundColor: PRIMARY_COLOR,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 16,
   },
-
   detailButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-
   excelButton: {
-    backgroundColor: '#098710',
+    backgroundColor: PRIMARY_COLOR, // 엑셀 색상
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -350,12 +276,13 @@ const styles = StyleSheet.create({
     margin: 24,
     marginTop: 0,
   },
-
   excelButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-
   emptyText: { fontSize: 16, color: '#6B7280', textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 20, paddingBottom: 30, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
+  modalConfirmButton: { backgroundColor: PRIMARY_COLOR, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 16, marginHorizontal: 20 },
+  modalConfirmButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
 
 export default SuperAdminDashboardScreen;

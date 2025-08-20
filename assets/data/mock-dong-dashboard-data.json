@@ -1,0 +1,34 @@
+{
+    "totals": {
+      "totalDonationCount": 25,
+      "totalDonationAmount": 450000,
+      "totalShareCount": 20,
+      "totalShareAmount": 380000
+    },
+    "stores": [
+      {
+        "id": 9,
+        "name": "송하정",
+        "donationCount": 8,
+        "donationAmount": 150000,
+        "shareCount": 7,
+        "shareAmount": 120000
+      },
+      {
+        "id": 10,
+        "name": "돌삼겹나들목",
+        "donationCount": 5,
+        "donationAmount": 90000,
+        "shareCount": 4,
+        "shareAmount": 80000
+      },
+      {
+        "id": 12,
+        "name": "파리바게뜨 왕십리무학점",
+        "donationCount": 12,
+        "donationAmount": 210000,
+        "shareCount": 9,
+        "shareAmount": 180000
+      }
+    ]
+  }

@@ -1,0 +1,38 @@
+[
+    {
+      "id": "donation_1",
+      "type": "기부",
+      "amount": 20000,
+      "date": "2025-08-15"
+    },
+    {
+      "id": "giving_1",
+      "type": "나눔",
+      "amount": 15000,
+      "date": "2025-08-12"
+    },
+    {
+      "id": "donation_2",
+      "type": "기부",
+      "amount": 10000,
+      "date": "2025-08-10"
+    },
+    {
+      "id": "donation_3",
+      "type": "기부",
+      "amount": 25000,
+      "date": "2025-07-28"
+    },
+    {
+      "id": "giving_2",
+      "type": "나눔",
+      "amount": 20000,
+      "date": "2025-07-25"
+    },
+    {
+      "id": "donation_4",
+      "type": "기부",
+      "amount": 15000,
+      "date": "2025-07-22"
+    }
+  ]
