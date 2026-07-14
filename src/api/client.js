@@ -29,6 +29,44 @@ const realApi = axios.create({
   timeout: 10000,
 });
 
-const api = USE_MOCK ? mockApi : realApi;
+// 기본 백엔드: 정적 배포면 mock, 로컬 개발이면 axios
+const base = USE_MOCK ? mockApi : realApi;
+
+// ---------------------------------------------------------------------------
+// AI 에이전트만 실제 LLM 호출로 라우팅
+//   /agent/ask/  ->  POST /api/agent (Vercel Serverless Function, OpenAI 호출)
+//   그 외 경로   ->  기존 base(mock/실서버) 그대로
+// 실패(키 미설정·네트워크·비웹 환경) 시 규칙 기반 mock 에이전트로 폴백해
+// 화면이 깨지지 않게 한다.
+// ---------------------------------------------------------------------------
+async function callAgent(params = {}) {
+  const question = params.q ?? params.question ?? '';
+  const dongId = params.dongId;
+  try {
+    const resp = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, dongId }),
+    });
+    if (!resp.ok) throw new Error(`agent endpoint ${resp.status}`);
+    const data = await resp.json();
+    if (!data || !data.answer) throw new Error('empty answer');
+    return { data: { ...data, source: data.source || 'llm' }, status: 200 };
+  } catch (e) {
+    // 폴백: 규칙 기반(mock) 에이전트
+    const r = await mockApi.get('/agent/ask/', { params });
+    return { data: { ...r.data, source: 'rule' }, status: r.status };
+  }
+}
+
+const isAgentPath = (url) => typeof url === 'string' && url.split('?')[0].replace(/^\/api/, '').startsWith('/agent/ask/');
+
+const api = {
+  get: (url, config = {}) => (isAgentPath(url) ? callAgent(config.params || {}) : base.get(url, config)),
+  post: (url, body, config) => base.post(url, body, config),
+  patch: (url, body, config) => base.patch(url, body, config),
+  put: (url, body, config) => base.put(url, body, config),
+  delete: (url, config) => base.delete(url, config),
+};
 
 export default api;

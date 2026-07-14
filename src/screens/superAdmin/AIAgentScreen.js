@@ -17,6 +17,7 @@ import api from '../../api/client';
 import BackButton from '../../components/BackButton';
 import BarChart from '../../components/BarChart';
 import LineChart from '../../components/LineChart';
+import TypewriterText from '../../components/TypewriterText';
 
 const PRIMARY_COLOR = '#1A237E';
 const CHART_WIDTH = Math.min(Dimensions.get('window').width - 96, 460);
@@ -63,14 +64,16 @@ const AIAgentScreen = ({ navigation, route }) => {
     try {
       const params = dongId != null ? { q, dongId } : { q };
       const res = await api.get('/agent/ask/', { params });
-      setMessages((prev) => [...prev, { role: 'agent', text: res.data.answer, chart: res.data.chart }]);
+      setMessages((prev) => [...prev, { role: 'agent', text: res.data.answer, chart: res.data.chart, source: res.data.source, animate: true }]);
     } catch (e) {
-      setMessages((prev) => [...prev, { role: 'agent', text: '죄송해요, 답변을 불러오지 못했습니다. 다시 시도해주세요.' }]);
+      setMessages((prev) => [...prev, { role: 'agent', text: '죄송해요, 답변을 불러오지 못했습니다. 다시 시도해주세요.', animate: true }]);
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
     }
   };
+
+  const handleTypeScroll = () => scrollRef.current?.scrollToEnd({ animated: false });
 
   const renderChart = (chart) => {
     if (!chart) return null;
@@ -104,8 +107,17 @@ const AIAgentScreen = ({ navigation, route }) => {
           {messages.map((m, i) => (
             <View key={i} style={[styles.bubbleRow, m.role === 'user' ? styles.rowRight : styles.rowLeft]}>
               <View style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.agentBubble]}>
-                <Text style={[styles.bubbleText, m.role === 'user' && styles.userBubbleText]}>{m.text}</Text>
-                {m.role === 'agent' ? renderChart(m.chart) : null}
+                {m.role === 'user' ? (
+                  <Text style={[styles.bubbleText, styles.userBubbleText]}>{m.text}</Text>
+                ) : (
+                  <>
+                    <TypewriterText text={m.text} style={styles.bubbleText} animate={m.animate !== false} onUpdate={handleTypeScroll} />
+                    {m.source ? (
+                      <Text style={styles.sourceTag}>{m.source === 'llm' ? '🟢 AI 응답 (LLM)' : '⚪ 규칙 기반 (오프라인 폴백)'}</Text>
+                    ) : null}
+                    {renderChart(m.chart)}
+                  </>
+                )}
               </View>
             </View>
           ))}
@@ -168,6 +180,7 @@ const styles = StyleSheet.create({
   userBubble: { backgroundColor: PRIMARY_COLOR, borderTopRightRadius: 4 },
   bubbleText: { fontSize: 15, lineHeight: 22, color: '#1F2937' },
   userBubbleText: { color: '#FFFFFF' },
+  sourceTag: { marginTop: 8, fontSize: 10.5, color: '#9AA0B4', fontWeight: '600' },
   chartWrap: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
   quickRow: { flexGrow: 0, backgroundColor: '#F4F6F8' },
   quickContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
