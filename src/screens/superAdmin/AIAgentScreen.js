@@ -112,9 +112,6 @@ const AIAgentScreen = ({ navigation, route }) => {
                 ) : (
                   <>
                     <TypewriterText text={m.text} style={styles.bubbleText} animate={m.animate !== false} onUpdate={handleTypeScroll} />
-                    {m.source ? (
-                      <Text style={styles.sourceTag}>{m.source === 'llm' ? '🟢 AI 응답 (LLM)' : '⚪ 규칙 기반 (오프라인 폴백)'}</Text>
-                    ) : null}
                     {renderChart(m.chart)}
                   </>
                 )}
@@ -180,7 +177,6 @@ const styles = StyleSheet.create({
   userBubble: { backgroundColor: PRIMARY_COLOR, borderTopRightRadius: 4 },
   bubbleText: { fontSize: 15, lineHeight: 22, color: '#1F2937' },
   userBubbleText: { color: '#FFFFFF' },
-  sourceTag: { marginTop: 8, fontSize: 10.5, color: '#9AA0B4', fontWeight: '600' },
   chartWrap: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
   quickRow: { flexGrow: 0, backgroundColor: '#F4F6F8' },
   quickContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
