@@ -20,7 +20,7 @@ import api from '../../api/client';
 import BackButton from '../../components/BackButton';
 import BarChart from '../../components/BarChart';
 import LineChart from '../../components/LineChart';
-import { exportCsv } from '../../utils/exportCsv';
+import { exportExcel } from '../../utils/exportExcel';
 
 const CHART_WIDTH = Math.min(Dimensions.get('window').width - 72, 520);
 
@@ -385,7 +385,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
     const periodTag = startDate && endDate
       ? `${startDate.getFullYear()}-${startDate.getMonth() + 1}`
       : '전체';
-    exportCsv(rows, `성동_원플러스원_동별기부내역_${periodTag}`);
+    exportExcel(rows, `성동_원플러스원_동별기부내역_${periodTag}`, '동별기부내역');
   };
   const handleCardPress = (dong) => { navigation.navigate('DongDashboard', { dongName: dong.name, dongId: dong.id }); };
   
