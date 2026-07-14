@@ -48,12 +48,21 @@ async function callAgent(params = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, dongId }),
     });
-    if (!resp.ok) throw new Error(`agent endpoint ${resp.status}`);
+    if (!resp.ok) {
+      let detail = '';
+      try {
+        detail = await resp.text();
+      } catch (_) {}
+      throw new Error(`agent endpoint ${resp.status} — ${detail.slice(0, 200)}`);
+    }
     const data = await resp.json();
     if (!data || !data.answer) throw new Error('empty answer');
     return { data: { ...data, source: data.source || 'llm' }, status: 200 };
   } catch (e) {
-    // 폴백: 규칙 기반(mock) 에이전트
+    // 폴백: 규칙 기반(mock) 에이전트 — 원인을 콘솔에 남겨 디버깅을 돕는다.
+    if (typeof console !== 'undefined') {
+      console.warn('[AI 에이전트] LLM 호출 실패 → 규칙 기반 폴백:', e && e.message ? e.message : e);
+    }
     const r = await mockApi.get('/agent/ask/', { params });
     return { data: { ...r.data, source: 'rule' }, status: r.status };
   }
