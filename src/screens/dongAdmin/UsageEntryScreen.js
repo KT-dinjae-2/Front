@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import api from '../../api/client';
 
 const PRIMARY_COLOR = '#1A237E';
 
@@ -58,7 +59,10 @@ const SuccessModal = ({ visible, onConfirm, entryCount }) => {
 
 const UsageEntryScreen = ({ route, navigation }) => {
   const storeName = route.params?.storeName || '가게 이름';
-  const storeId = route.params?.storeId || '가게 ID';
+  const storeId = route.params?.storeId;
+  const dongId = route.params?.dongId;
+
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const [entries, setEntries] = useState([
     { id: 1, amount: '', date: new Date().toISOString().split('T')[0] }
@@ -113,7 +117,8 @@ const UsageEntryScreen = ({ route, navigation }) => {
     setCalendarVisible(true);
   };
   
-  const handleRegisterAll = () => {
+  const handleRegisterAll = async () => {
+    // 1) 유효성 검사
     for (const entry of entries) {
       const numericAmount = parseInt(String(entry.amount).replace(/,/g, ''), 10);
       if (!entry.amount || !entry.date || isNaN(numericAmount) || numericAmount <= 0) {
@@ -121,7 +126,32 @@ const UsageEntryScreen = ({ route, navigation }) => {
         return;
       }
     }
-    setSuccessModalVisible(true);
+
+    if (!dongId || !storeId) {
+      Alert.alert('오류', '가게/동 정보가 없어 등록할 수 없습니다.');
+      return;
+    }
+
+    // 2) 각 나눔 내역을 백엔드에 등록 (Giving 생성)
+    setSubmitting(true);
+    try {
+      await Promise.all(
+        entries.map((entry) =>
+          api.post('/giving/create/', {
+            dong: dongId,
+            store: storeId,
+            amount: parseInt(String(entry.amount).replace(/,/g, ''), 10),
+            giving_date: entry.date.replace(/\//g, '-'), // YYYY/MM/DD -> YYYY-MM-DD
+          })
+        )
+      );
+      setSuccessModalVisible(true);
+    } catch (e) {
+      console.error('나눔 등록 실패:', e);
+      Alert.alert('오류', '나눔 내역 등록에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setSubmitting(false);
+    }
   };
   
   const handleSuccessConfirm = () => {
@@ -173,6 +203,7 @@ const UsageEntryScreen = ({ route, navigation }) => {
           </View>
 
           <FlatList
+            style={{ flex: 1 }}
             data={entries}
             renderItem={renderEntryForm}
             keyExtractor={item => item.id.toString()}
@@ -186,8 +217,8 @@ const UsageEntryScreen = ({ route, navigation }) => {
           />
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.submitButton} onPress={handleRegisterAll}>
-              <Text style={styles.submitButtonText}>전체 등록</Text>
+            <TouchableOpacity style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]} onPress={handleRegisterAll} disabled={isSubmitting}>
+              <Text style={styles.submitButtonText}>{isSubmitting ? '등록 중...' : '전체 등록'}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -14,9 +14,9 @@ import {
   View,
 } from 'react-native';
 
-// 1. 로컬 JSON 파일들을 import 합니다. (경로를 다시 한번 확인해주세요!)
-import dongsData from '../../../assets/data/mock-dongs.json';
-import storesData from '../../../assets/data/mock-stores-by-dong.json';
+// 백엔드 API 클라이언트
+import api from '../../api/client';
+import BackButton from '../../components/BackButton';
 
 
 const CORRECT_DONATION_CODE = "1234";
@@ -47,6 +47,7 @@ const SelectorModal = ({ visible, title, data, onSelect, onClose }) => (
           </TouchableOpacity>
         </View>
         <FlatList
+          style={{ flex: 1 }}
           data={data}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
@@ -88,7 +89,7 @@ const ConfirmationModal = ({ visible, onCancel, onConfirm, details }) => {
 };
 
 
-const DonationEntryScreen = ({ navigation }) => {
+const DonationEntryScreen = ({ navigation, route }) => {
   const [dongs, setDongs] = useState([]);
   const [storesForDong, setStoresForDong] = useState([]);
   const [selectedDong, setSelectedDong] = useState(null);
@@ -107,27 +108,58 @@ const DonationEntryScreen = ({ navigation }) => {
 
 
   useEffect(() => {
-    const fetchDongs = () => {
+    const fetchDongs = async () => {
       setIsLoading(true);
-      setTimeout(() => {
-        setDongs(dongsData);
+      try {
+        const response = await api.get('/dongs/');
+        setDongs(response.data);
+      } catch (e) {
+        console.error('동 목록 조회 실패:', e);
+        Alert.alert('오류', '동 목록을 불러오지 못했습니다. 서버가 실행 중인지 확인해주세요.');
+      } finally {
         setIsLoading(false);
-      }, 500);
+      }
     };
     fetchDongs();
   }, []);
 
-  const handleSelectDong = (dong) => {
+  // GVTI 추천 등에서 동/가게를 넘겨받으면 자동으로 선택합니다.
+  useEffect(() => {
+    const { dongId, dongName, storeId, storeName } = route?.params || {};
+    if (!dongId || !storeId) return;
+
+    setSelectedDong({ id: dongId, name: dongName });
+    setSelectedStore(null);
+    setIsStoreLoading(true);
+    (async () => {
+      try {
+        const response = await api.get(`/dongs/${dongId}/stores/`);
+        setStoresForDong(response.data);
+      } catch (e) {
+        console.error('가게 목록 조회 실패:', e);
+      } finally {
+        setIsStoreLoading(false);
+        setSelectedStore({ id: storeId, name: storeName });
+      }
+    })();
+  }, [route?.params?.dongId, route?.params?.storeId]);
+
+  const handleSelectDong = async (dong) => {
     setSelectedDong(dong);
     setSelectedStore(null);
     setModalVisible(false);
     setIsStoreLoading(true);
-    
-    setTimeout(() => {
-      const stores = storesData[dong.id] || [];
-      setStoresForDong(stores);
+
+    try {
+      const response = await api.get(`/dongs/${dong.id}/stores/`);
+      setStoresForDong(response.data);
+    } catch (e) {
+      console.error('가게 목록 조회 실패:', e);
+      Alert.alert('오류', '가게 목록을 불러오지 못했습니다.');
+      setStoresForDong([]);
+    } finally {
       setIsStoreLoading(false);
-    }, 300);
+    }
   };
   
   const handleSelectStore = (store) => {
@@ -177,21 +209,24 @@ const DonationEntryScreen = ({ navigation }) => {
   };
   
   // --- 4. 확인 팝업에서 '확인'을 눌렀을 때 실행될 함수 ---
-  const executeDonation = () => {
+  const executeDonation = async () => {
     setConfirmModalVisible(false); // 확인 팝업 닫기
     setIsSubmitting(true);
-    
-    setTimeout(() => {
-        console.log("전송 데이터 (시뮬레이션):", {
-            dong: selectedDong.id,
-            store: selectedStore.id,
-            amount: donationDetails.amount,
-            donation_date: new Date().toISOString().split('T')[0],
-        });
-        setIsSubmitting(false);
-        
-        navigation.navigate('DonationSuccess', { amount: donationDetails.amount });
-    }, 1000);
+
+    try {
+      await api.post('/donation/create/', {
+        dong: selectedDong.id,
+        store: selectedStore.id,
+        amount: donationDetails.amount,
+        donation_date: new Date().toISOString().split('T')[0],
+      });
+      navigation.navigate('DonationSuccess', { amount: donationDetails.amount });
+    } catch (e) {
+      console.error('기부 등록 실패:', e);
+      Alert.alert('오류', '기부 등록에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -205,6 +240,7 @@ const DonationEntryScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <BackButton onPress={() => navigation.popToTop()} color="#FFFFFF" />
       <SelectorModal
         visible={modalVisible}
         title={modalInfo.title}

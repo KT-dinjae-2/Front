@@ -1,6 +1,8 @@
 import React from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import BackButton from '../../components/BackButton';
+
 // 이전 화면들과 동일한 메인 색상 사용
 const PRIMARY_COLOR = '#1A237E';
 
@@ -10,6 +12,7 @@ const DonationSuccessScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <BackButton onPress={() => navigation.popToTop()} />
       <View style={styles.container}>
         {/* 아이콘을 좀 더 축하하는 느낌으로 변경 */}
         <Text style={styles.icon}>🎉</Text>

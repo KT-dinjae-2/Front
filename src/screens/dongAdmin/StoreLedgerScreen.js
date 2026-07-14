@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import mockTransactionsData from '../../../assets/data/mock-store-ledger-data.json';
+import api from '../../api/client';
 
 const PRIMARY_COLOR = '#1A237E';
 const formatNumber = (num) => num ? num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') : '0';
@@ -26,23 +26,29 @@ const TransactionItem = ({ item, onPress }) => {
 };
 
 const StoreLedgerScreen = ({ route, navigation }) => {
-  const { storeName, storeId, dongName } = route.params;
+  const { storeName, storeId, dongName, dongId } = route.params;
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
-      const fetchTransactions = () => {
+      const fetchTransactions = async () => {
         setIsLoading(true);
         setError(null);
-        setTimeout(() => {
-          const sortedData = mockTransactionsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+        try {
+          const response = await api.get(`/store/${storeId}/transactions/`);
+          // 오래된 순으로 정렬 (백엔드는 최신순으로 내려줌)
+          const sortedData = [...response.data].sort((a, b) => new Date(a.date) - new Date(b.date));
           setTransactions(sortedData);
+        } catch (e) {
+          console.error('거래 내역 조회 실패:', e);
+          setError('거래 내역을 불러오지 못했습니다.');
+        } finally {
           setIsLoading(false);
-        }, 500);
+        }
       };
-      
+
       fetchTransactions();
     }, [storeId])
   );
@@ -78,6 +84,7 @@ const StoreLedgerScreen = ({ route, navigation }) => {
           <Text style={styles.emptyText}>{error}</Text>
         ) : (
           <FlatList
+            style={{ flex: 1 }}
             ListHeaderComponent={<Text style={styles.ledgerTitle}>전체</Text>}
             data={transactions}
             renderItem={({ item }) => (
@@ -103,7 +110,7 @@ const StoreLedgerScreen = ({ route, navigation }) => {
 
       <TouchableOpacity 
         style={styles.fab}
-        onPress={() => navigation.navigate('UsageEntry', { storeName, storeId })}
+        onPress={() => navigation.navigate('UsageEntry', { storeName, storeId, dongId })}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>

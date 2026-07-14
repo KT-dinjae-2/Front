@@ -21,7 +21,7 @@ const UsageDetailScreen = ({ route, navigation }) => {
         <Text style={styles.backButtonText}>‹</Text>
       </TouchableOpacity>
       
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.storeTitle}>{storeName || '가게 이름'}</Text>
         </View>

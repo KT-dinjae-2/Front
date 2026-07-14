@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import api from '../../api/client';
 
 const PRIMARY_COLOR = '#1A237E';
 
@@ -35,15 +36,15 @@ const ConfirmationModal = ({ visible, onCancel, onConfirm, editedAmount, editedD
     );
 };
 
-// 수정 완료를 알리는 팝업
-const SuccessModal = ({ visible, onConfirm }) => {
+// 수정/삭제 완료를 알리는 팝업
+const SuccessModal = ({ visible, onConfirm, message }) => {
     return (
         <Modal transparent={true} visible={visible} onRequestClose={onConfirm} animationType="fade">
             <View style={styles.modalBackdrop}>
                 <View style={styles.popupModalContent}>
                     <Text style={styles.successIcon}>🎉</Text>
-                    <Text style={styles.modalTitle}>수정 완료</Text>
-                    <Text style={styles.modalSubMessage}>나눔 내역이 성공적으로 수정되었습니다.</Text>
+                    <Text style={styles.modalTitle}>완료</Text>
+                    <Text style={styles.modalSubMessage}>{message}</Text>
                     <TouchableOpacity style={[styles.modalButton, styles.okButton]} onPress={onConfirm}>
                         <Text style={styles.okButtonText}>확인</Text>
                     </TouchableOpacity>
@@ -53,17 +54,45 @@ const SuccessModal = ({ visible, onConfirm }) => {
     );
 };
 
+// 삭제 확인 팝업
+const DeleteModal = ({ visible, onCancel, onConfirm }) => {
+    return (
+        <Modal transparent={true} visible={visible} onRequestClose={onCancel} animationType="fade">
+            <View style={styles.modalBackdrop}>
+                <View style={styles.popupModalContent}>
+                    <Text style={styles.modalTitle}>삭제 확인</Text>
+                    <Text style={styles.modalSubMessage}>이 나눔 내역을 정말 삭제하시겠습니까?</Text>
+                    <View style={styles.modalButtonContainer}>
+                        <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={onCancel}>
+                            <Text style={styles.cancelButtonText}>취소</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.modalButton, styles.deleteConfirmButton]} onPress={onConfirm}>
+                            <Text style={styles.confirmButtonText}>삭제</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
 
 const UsageEditScreen = ({ route, navigation }) => {
   const { item } = route.params;
-  
+
+  // 거래 내역 id는 'giving_123' 형태 -> 숫자 id만 추출
+  const givingId = String(item.id).replace(/^giving_/, '');
+
   const [amount, setAmount] = useState(item.amount.toString());
   const [date, setDate] = useState(item.date.replace(/-/g, '/'));
-  
+
   const [isCalendarVisible, setCalendarVisible] = useState(false);
   const [isConfirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isSuccessModalVisible, setSuccessModalVisible] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('나눔 내역이 성공적으로 수정되었습니다.');
   const [editedData, setEditedData] = useState(null);
+  const [isSubmitting, setSubmitting] = useState(false);
 
   const handleEdit = () => {
     if (!amount || !date) {
@@ -78,12 +107,39 @@ const UsageEditScreen = ({ route, navigation }) => {
     setEditedData({ amount: amount, date: date });
     setConfirmModalVisible(true);
   };
-  
-  const handleConfirmEdit = () => {
+
+  const handleConfirmEdit = async () => {
     setConfirmModalVisible(false);
-    console.log(`[수정] ID: ${item.id}, 금액: ${editedData.amount}, 날짜: ${editedData.date}`);
-    setSuccessModalVisible(true);
-  }
+    setSubmitting(true);
+    try {
+      await api.patch(`/giving/${givingId}/`, {
+        amount: parseInt(editedData.amount.replace(/,/g, ''), 10),
+        giving_date: editedData.date.replace(/\//g, '-'), // YYYY/MM/DD -> YYYY-MM-DD
+      });
+      setSuccessMessage('나눔 내역이 성공적으로 수정되었습니다.');
+      setSuccessModalVisible(true);
+    } catch (e) {
+      console.error('나눔 수정 실패:', e);
+      Alert.alert('오류', '나눔 내역 수정에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteModalVisible(false);
+    setSubmitting(true);
+    try {
+      await api.delete(`/giving/${givingId}/`);
+      setSuccessMessage('나눔 내역이 삭제되었습니다.');
+      setSuccessModalVisible(true);
+    } catch (e) {
+      console.error('나눔 삭제 실패:', e);
+      Alert.alert('오류', '나눔 내역 삭제에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSuccessConfirm = () => {
       setSuccessModalVisible(false);
@@ -139,9 +195,20 @@ const UsageEditScreen = ({ route, navigation }) => {
             </View>
         </ScrollView>
         
-        <View style={styles.footer}>
-            <TouchableOpacity style={styles.submitButton} onPress={handleEdit}>
-                <Text style={styles.submitButtonText}>수정 완료</Text>
+        <View style={[styles.footer, styles.footerRow]}>
+            <TouchableOpacity
+                style={[styles.deleteButton, isSubmitting && { opacity: 0.6 }]}
+                onPress={() => setDeleteModalVisible(true)}
+                disabled={isSubmitting}
+            >
+                <Text style={styles.deleteButtonText}>삭제</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.submitButton, { flex: 1 }, isSubmitting && { opacity: 0.6 }]}
+                onPress={handleEdit}
+                disabled={isSubmitting}
+            >
+                <Text style={styles.submitButtonText}>{isSubmitting ? '처리 중...' : '수정 완료'}</Text>
             </TouchableOpacity>
         </View>
 
@@ -180,9 +247,16 @@ const UsageEditScreen = ({ route, navigation }) => {
         editedDate={editedData?.date}
       />
       
+      <DeleteModal
+        visible={isDeleteModalVisible}
+        onCancel={() => setDeleteModalVisible(false)}
+        onConfirm={handleConfirmDelete}
+      />
+
       <SuccessModal
         visible={isSuccessModalVisible}
         onConfirm={handleSuccessConfirm}
+        message={successMessage}
       />
     </SafeAreaView>
   );
@@ -210,8 +284,12 @@ const styles = StyleSheet.create({
     dateInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'center', },
     dateText: { fontSize: 16, color: '#1F2937', },
     footer: { padding: 20, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEE', },
+    footerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     submitButton: { backgroundColor: PRIMARY_COLOR, borderRadius: 16, paddingVertical: 18, alignItems: 'center', },
     submitButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', },
+    deleteButton: { backgroundColor: '#FEE2E2', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 24, alignItems: 'center', },
+    deleteButtonText: { color: '#D32F2F', fontSize: 18, fontWeight: 'bold', },
+    deleteConfirmButton: { backgroundColor: '#D32F2F' },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, },
     calendarModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 10, width: '90%', },
     popupModalContent: { backgroundColor: 'white', borderRadius: 16, padding: 24, width: '100%', alignItems: 'center' },

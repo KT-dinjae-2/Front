@@ -27,6 +27,18 @@ const WelcomeScreen = ({ navigation }) => {
           >
             <Text style={[styles.buttonText, styles.adminButtonText]}>관리자 로그인</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.gvtiButton}
+            onPress={() => navigation.navigate('GVTI')}
+          >
+            <Text style={styles.gvtiButtonText}>🎁 내 기부 유형 알아보기 (GVTI)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.introLink}
+            onPress={() => navigation.navigate('ProjectIntro')}
+          >
+            <Text style={styles.introLinkText}>원플러스원 사업 소개 보기 〉</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -78,6 +90,16 @@ const styles = StyleSheet.create({
   adminButtonText: {
     color: '#2A3C72', // 이미지의 '관리자 로그인' 텍스트 색상으로 변경
   },
+  gvtiButton: {
+    backgroundColor: '#E8EAF6',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  gvtiButtonText: { color: '#2A3C72', fontSize: 16, fontWeight: 'bold' },
+  introLink: { alignItems: 'center', paddingVertical: 12 },
+  introLinkText: { color: '#2A3C72', fontSize: 15, fontWeight: '600' },
 });
 
 export default WelcomeScreen;

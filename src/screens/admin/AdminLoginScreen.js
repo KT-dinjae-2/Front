@@ -4,6 +4,7 @@ import { Alert, FlatList, Image, Modal, SafeAreaView, StyleSheet, Text, TextInpu
 import { Ionicons } from '@expo/vector-icons';
 
 import credentials from '../../../assets/login/admin-credentials.json';
+import BackButton from '../../components/BackButton';
 
 const dongs = credentials.dongAdmins;
 
@@ -38,6 +39,7 @@ const AdminLoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <BackButton navigation={navigation} />
       <View style={styles.container}>
         <Image source={require('../../../assets/images/original-logo.png')} style={styles.logo} />
         <Text style={styles.title}>원플러스원{'\n'}관리자 로그인</Text>
@@ -63,6 +65,23 @@ const AdminLoginScreen = ({ navigation }) => {
             onChangeText={setRegionCode}
             secureTextEntry
           />
+
+          {/* 지역 코드 안내 — 실제로 체험해볼 수 있도록 입력 코드를 알려줍니다 */}
+          <View style={styles.codeHintBox}>
+            <Text style={styles.codeHintTitle}>💡 지역 코드 안내</Text>
+            {region ? (
+              <Text style={styles.codeHintText}>
+                {region.name} 관리자 코드: <Text style={styles.codeHintValue}>{region.code}</Text>
+              </Text>
+            ) : (
+              <Text style={styles.codeHintText}>
+                동 관리자 코드: <Text style={styles.codeHintValue}>1234</Text> (지역을 먼저 선택하세요)
+              </Text>
+            )}
+            <Text style={styles.codeHintText}>
+              전체 관리자 코드: <Text style={styles.codeHintValue}>{credentials.superAdmin.code}</Text>
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
@@ -85,6 +104,7 @@ const AdminLoginScreen = ({ navigation }) => {
               </View>
 
               <FlatList
+                style={{ flex: 1 }}
                 data={dongs}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
@@ -141,13 +161,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontWeight: '500'
   },
-  button: { 
-    backgroundColor: '#00796B', 
-    padding: 16, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    marginTop: 24, 
-    width: '100%' 
+  codeHintBox: {
+    marginTop: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#B2DFDB',
+  },
+  codeHintTitle: { fontSize: 13, fontWeight: '700', color: '#00796B', marginBottom: 6 },
+  codeHintText: { fontSize: 13, color: '#00695C', lineHeight: 20 },
+  codeHintValue: { fontWeight: 'bold', color: '#004D40' },
+  button: {
+    backgroundColor: '#00796B',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+    width: '100%'
   },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   
