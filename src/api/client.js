@@ -33,15 +33,25 @@ const realApi = axios.create({
 const base = USE_MOCK ? mockApi : realApi;
 
 // ---------------------------------------------------------------------------
-// AI 에이전트만 실제 LLM 호출로 라우팅
-//   /agent/ask/  ->  POST /api/agent (Vercel Serverless Function, OpenAI 호출)
-//   그 외 경로   ->  기존 base(mock/실서버) 그대로
-// 실패(키 미설정·네트워크·비웹 환경) 시 규칙 기반 mock 에이전트로 폴백해
-// 화면이 깨지지 않게 한다.
+// AI 에이전트 하이브리드 라우팅
+//   1) 규칙 기반(mock)을 먼저 시도 — "기부가 가장 많은 동은?" 같은 알려진 예시
+//      질문은 규칙 엔진이 예쁜 형식(+차트)으로, 즉시·무료로 답한다.
+//   2) 규칙 엔진이 이해하지 못한(unmatched) 자유 질문만 실제 LLM
+//      (POST /api/agent, OpenAI)로 넘긴다.
+//   3) LLM 실패(키 미설정·네트워크·비웹 환경) 시 규칙 기반 안내로 폴백해
+//      화면이 깨지지 않게 한다.
 // ---------------------------------------------------------------------------
 async function callAgent(params = {}) {
   const question = params.q ?? params.question ?? '';
   const dongId = params.dongId;
+
+  // 1) 규칙 기반 먼저
+  const ruleRes = await mockApi.get('/agent/ask/', { params });
+  if (ruleRes && ruleRes.data && !ruleRes.data.unmatched) {
+    return { data: { ...ruleRes.data, source: 'rule' }, status: 200 };
+  }
+
+  // 2) 규칙이 못 맞춘 질문만 LLM 으로
   try {
     const resp = await fetch('/api/agent', {
       method: 'POST',
@@ -59,12 +69,11 @@ async function callAgent(params = {}) {
     if (!data || !data.answer) throw new Error('empty answer');
     return { data: { ...data, source: data.source || 'llm' }, status: 200 };
   } catch (e) {
-    // 폴백: 규칙 기반(mock) 에이전트 — 원인을 콘솔에 남겨 디버깅을 돕는다.
+    // 3) LLM 실패 → 규칙 기반 안내(fallback)로
     if (typeof console !== 'undefined') {
       console.warn('[AI 에이전트] LLM 호출 실패 → 규칙 기반 폴백:', e && e.message ? e.message : e);
     }
-    const r = await mockApi.get('/agent/ask/', { params });
-    return { data: { ...r.data, source: 'rule' }, status: r.status };
+    return { data: { ...ruleRes.data, source: 'rule' }, status: 200 };
   }
 }
 

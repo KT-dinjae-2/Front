@@ -444,6 +444,7 @@ function askAgentScoped(q, dong) {
   return ok({
     answer: `${dong.name}에 대해 이렇게 물어봐 주세요: "${dong.name} 총 기부 실적", "${dong.name} 월별 기부 추세", "${dong.name} 나눔 현황", "${dong.name} 기부 많은 가게".`,
     suggestions: SUGGEST,
+    unmatched: true,
   });
 }
 
@@ -598,10 +599,11 @@ function askAgent(question, dongId) {
     });
   }
 
-  // fallback
+  // fallback (규칙 엔진이 이해하지 못함 → LLM 으로 넘길 대상)
   return ok({
     answer: '질문을 정확히 이해하지 못했어요. 이렇게 물어봐 주세요: "기부가 가장 많은 동은?", "월별 기부 추세", "나눔 현황", "○○동 실적", "참여 가게 수".',
     suggestions: SUGGEST,
+    unmatched: true,
   });
 }
 
